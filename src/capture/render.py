@@ -31,7 +31,9 @@ pre {{ margin: 0; min-width: {cols}ch; color: #c9d1d9; white-space: pre;
   font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; }}
 </style></head><body>
 <div class="frame"><div class="term">
-<div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+<div class="bar">
+<span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+</div>
 <div class="body"><pre>{body_html}</pre></div>
 </div></div>
 </body></html>"""
