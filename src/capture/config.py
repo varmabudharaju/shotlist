@@ -1,0 +1,158 @@
+"""Configuration model and loader for ``.capture.yaml`` shot lists.
+
+The shot list is the heart of ``capture``: a committed, declarative description
+of *how to start the app* and *what to capture*. Everything downstream consumes
+the validated :class:`Config` produced by :func:`load`.
+"""
+
+from pathlib import Path
+from typing import Annotated, Literal, Self
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+
+class ConfigError(Exception):
+    """Raised when a shot list is missing, unreadable, or invalid.
+
+    Wraps lower-level YAML and validation errors in a single, user-facing type
+    so the CLI can report one clear message.
+    """
+
+
+class _Strict(BaseModel):
+    """Base model that rejects unknown keys, turning typos into clear errors."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class Viewport(_Strict):
+    width: int = 1280
+    height: int = 800
+
+
+class Step(_Strict):
+    """A single interaction performed before a web shot is captured.
+
+    Exactly one action field must be set per step.
+    """
+
+    click: str | None = None
+    fill: list[str] | None = None
+    wait_for: str | None = None
+    wait_ms: int | None = None
+    press: str | None = None
+    goto: str | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_action(self) -> Self:
+        actions = {
+            "click": self.click,
+            "fill": self.fill,
+            "wait_for": self.wait_for,
+            "wait_ms": self.wait_ms,
+            "press": self.press,
+            "goto": self.goto,
+        }
+        present = [name for name, value in actions.items() if value is not None]
+        if len(present) != 1:
+            raise ValueError(
+                f"each step must have exactly one action; got {present or 'none'}"
+            )
+        if self.fill is not None and len(self.fill) != 2:
+            raise ValueError('fill must be [selector, value] (two items)')
+        return self
+
+
+class WebShot(_Strict):
+    name: str
+    kind: Literal["web"]
+    url: str
+    viewport: Viewport = Field(default_factory=Viewport)
+    full_page: bool = True
+    selector: str | None = None
+    steps: list[Step] = Field(default_factory=list)
+    alt: str = ""
+
+
+class CliShot(_Strict):
+    name: str
+    kind: Literal["cli"]
+    command: str
+    cwd: str | None = None
+    cols: int = 100
+    alt: str = ""
+
+
+Shot = Annotated[WebShot | CliShot, Field(discriminator="kind")]
+
+
+class ReadySpec(_Strict):
+    """How to know the app is ready: exactly one probe, plus a timeout."""
+
+    url: str | None = None
+    port: int | None = None
+    log_line: str | None = None
+    timeout: float = 30.0
+
+    @model_validator(mode="after")
+    def _exactly_one_target(self) -> Self:
+        targets = [t for t in (self.url, self.port, self.log_line) if t is not None]
+        if len(targets) != 1:
+            raise ValueError("ready must specify exactly one of: url, port, log_line")
+        return self
+
+
+class AppSpec(_Strict):
+    command: str
+    cwd: str = "."
+    env: dict[str, str] = Field(default_factory=dict)
+    ready: ReadySpec | None = None
+
+
+class OutputSpec(_Strict):
+    dir: str = "docs/screenshots"
+    version: str | None = None
+    readme: str | None = None
+
+
+class Config(_Strict):
+    output: OutputSpec = Field(default_factory=OutputSpec)
+    app: AppSpec | None = None
+    shots: list[Shot] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _unique_shot_names(self) -> Self:
+        names = [s.name for s in self.shots]
+        dupes = sorted({n for n in names if names.count(n) > 1})
+        if dupes:
+            raise ValueError(f"duplicate shot names: {dupes}")
+        return self
+
+
+def load(path: str | Path) -> Config:
+    """Load and validate a shot list from ``path``.
+
+    Raises :class:`ConfigError` for any problem — missing file, malformed YAML,
+    or a config that fails validation — with a message suitable for the CLI.
+    """
+    p = Path(path)
+    try:
+        text = p.read_text()
+    except OSError as exc:
+        raise ConfigError(f"cannot read config file {p}: {exc}") from exc
+
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"invalid YAML in {p}: {exc}") from exc
+
+    if data is None:
+        raise ConfigError(f"config file {p} is empty")
+    if not isinstance(data, dict):
+        raise ConfigError(f"config root must be a mapping, got {type(data).__name__}")
+
+    try:
+        return Config.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigError(f"invalid config in {p}:\n{exc}") from exc
