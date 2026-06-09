@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "capture"
+version = "0.1.0"
+description = "Reproducible screenshot capture for docs — drive a web app or CLI from a declarative shot list and capture polished feature screenshots."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Varma Budharaju", email = "sairam.vzf33@gmail.com" }]
+keywords = ["screenshots", "documentation", "playwright", "readme", "cli"]
+dependencies = [
+    "playwright>=1.40",
+    "typer>=0.12",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "rich>=13.7",
+    "ansi2html>=1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[project.scripts]
+capture = "capture.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/varmabudharaju/capture"
+Repository = "https://github.com/varmabudharaju/capture"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/capture"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
