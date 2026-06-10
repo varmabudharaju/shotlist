@@ -38,13 +38,12 @@ _APPLESCRIPT = r'''on run argv
             set tries to tries + 1
         end repeat
         delay 0.5
-        set b to bounds of w
-        set x to item 1 of b
-        set y to item 2 of b
-        set wd to (item 3 of b) - x
-        set ht to (item 4 of b) - y
-        set theRegion to ("" & x & "," & y & "," & wd & "," & ht)
-        do shell script "screencapture -x -R" & theRegion & " " & quoted form of outPath
+        -- Capture by WINDOW ID, not screen region: a region grab photographs whatever
+        -- pixels are stacked on top (e.g. the user's own frontmost terminal), leaking
+        -- unrelated window content into the shot. -l targets this window regardless of
+        -- stacking and doesn't require it to be frontmost.
+        set wid to id of w
+        do shell script "screencapture -x -o -l " & wid & " " & quoted form of outPath
         close w saving no
     end tell
 end run
@@ -149,15 +148,9 @@ _STEP_SCRIPT = r'''on run argv
             delay (waitMs / 1000)
         end if
         delay 0.3
-        activate
-        delay 0.2
-        set b to bounds of w
-        set x to item 1 of b
-        set y to item 2 of b
-        set wd to (item 3 of b) - x
-        set ht to (item 4 of b) - y
-        set theRegion to ("" & x & "," & y & "," & wd & "," & ht)
-        do shell script "screencapture -x -R" & theRegion & " " & quoted form of outPath
+        -- Capture by WINDOW ID (see the single-shot script): region grabs leak whatever
+        -- window is stacked on top; -l hits this window even when it isn't frontmost.
+        do shell script "screencapture -x -o -l " & wid & " " & quoted form of outPath
     end tell
 end run
 '''
