@@ -63,10 +63,15 @@ shots:
 capture run
 ```
 
-`capture` boots the app, waits until it is actually ready, captures each shot via
-Playwright/Chromium (web pages directly; CLI output rendered as a styled terminal
-window), tears everything down cleanly, and writes numbered PNGs plus ready-to-paste
+`capture` boots the app, waits until it is actually ready, captures each shot,
+tears everything down cleanly, and writes numbered PNGs plus ready-to-paste
 `<img>` snippets under `docs/screenshots/`.
+
+**Web** shots are real Playwright/Chromium renders of the live page. **CLI** shots
+are, by default on macOS, *real screenshots of your actual Terminal.app window*
+(`style: native`) — your font, your theme, authentic. On other platforms (or with
+`style: rendered`) the command output is drawn as a styled terminal card instead,
+which needs no Screen-Recording permission and works in CI.
 
 No macOS Screen-Recording permission, no external binaries, no cloud, no paid services.
 
