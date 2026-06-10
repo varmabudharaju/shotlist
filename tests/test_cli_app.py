@@ -3,12 +3,18 @@
 import threading
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner, Result
 
 from capture import config as config_module
 from capture.cli import app
 
 runner = CliRunner()
+
+
+def _fake_terminal(command: str, cwd: str, cols: int, rows: int) -> bytes:
+    """Stand in for the real Terminal screenshot so the CLI test needs no GUI."""
+    return b"\x89PNG\r\n\x1a\nX"
 
 
 def invoke_run(args: list[str]) -> Result:
@@ -78,7 +84,8 @@ def test_validate_bad_file(tmp_path: Path) -> None:
     assert result.exit_code != 0
 
 
-def test_run_single_cli_shot(tmp_path: Path) -> None:
+def test_run_single_cli_shot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
     target = tmp_path / ".capture.yaml"
     target.write_text(
         "output:\n"
@@ -87,7 +94,6 @@ def test_run_single_cli_shot(tmp_path: Path) -> None:
         "  - name: greet\n"
         "    kind: cli\n"
         "    command: echo hello\n"
-        "    style: rendered\n"
     )
 
     result = invoke_run(["run", "--config", str(target)])

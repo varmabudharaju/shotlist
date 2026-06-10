@@ -86,7 +86,36 @@ class CliShot(_Strict):
     alt: str = ""
 
 
-Shot = Annotated[WebShot | CliShot, Field(discriminator="kind")]
+class SessionStep(_Strict):
+    """One command in a session; produces one screenshot named after ``name``."""
+
+    name: str
+    command: str
+    alt: str = ""
+    wait_ms: int = 0
+    clear: bool | None = None  # overrides the session's clear_between for this step
+
+
+class SessionShot(_Strict):
+    """A persistent Terminal session: run several commands in one window.
+
+    The shell state (cwd, env, background jobs) persists across steps; with
+    ``clear_between`` the screen is cleared before each command so every shot is
+    clean while the session keeps running. The window is captured after each step
+    and closed at the end. Long-running commands should be backgrounded (``&``)
+    with a ``wait_ms`` so they are up before the screenshot. macOS only.
+    """
+
+    name: str
+    kind: Literal["session"]
+    cwd: str | None = None
+    cols: int = 100
+    rows: int = 30
+    clear_between: bool = True
+    steps: list[SessionStep] = Field(min_length=1)
+
+
+Shot = Annotated[WebShot | CliShot | SessionShot, Field(discriminator="kind")]
 
 
 class ReadySpec(_Strict):
@@ -129,6 +158,17 @@ class Config(_Strict):
         dupes = sorted({n for n in names if names.count(n) > 1})
         if dupes:
             raise ValueError(f"duplicate shot names: {dupes}")
+        # Every produced image is named after a shot (web/cli) or a session step;
+        # those must be unique too, or output filenames would collide.
+        image_names: list[str] = []
+        for shot in self.shots:
+            if isinstance(shot, SessionShot):
+                image_names.extend(step.name for step in shot.steps)
+            else:
+                image_names.append(shot.name)
+        img_dupes = sorted({n for n in image_names if image_names.count(n) > 1})
+        if img_dupes:
+            raise ValueError(f"duplicate capture names (filenames would collide): {img_dupes}")
         return self
 
 

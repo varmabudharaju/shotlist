@@ -2,10 +2,15 @@
 
 This module glues the pieces together. It optionally starts the app via
 :class:`~capture.lifecycle.AppProcess`, then walks the selected shots routing
-each to the right backend — web pages and *rendered* CLI shots go through one
-Chromium; *native* CLI shots screenshot a real Terminal window. Chromium is only
-launched when a shot actually needs it. A ``try``/``finally`` guarantees the
-browser is closed and the app is stopped even when capture fails.
+each to the right backend:
+
+- web pages and *rendered* CLI shots go through one Chromium;
+- *native* CLI shots screenshot a real Terminal window;
+- *session* shots run several commands in one persistent Terminal window,
+  capturing after each — so one session yields several numbered images.
+
+Chromium is only launched when a shot actually needs it. A ``try``/``finally``
+guarantees the browser is closed and the app is stopped even when capture fails.
 """
 
 import sys
@@ -14,13 +19,16 @@ from pathlib import Path
 from playwright.sync_api import Browser, Page, sync_playwright
 
 from capture.backends.cli import capture_cli
-from capture.backends.native_terminal import capture_terminal
+from capture.backends.native_terminal import capture_terminal, capture_terminal_session
 from capture.backends.web import capture_web
-from capture.config import CliShot, Config, WebShot
+from capture.config import CliShot, Config, SessionShot, WebShot
 from capture.lifecycle import AppProcess
 from capture.output import CaptureResult, Writer
 
-Shot = WebShot | CliShot
+Shot = WebShot | CliShot | SessionShot
+
+# One produced image: (name, alt, kind, png_bytes).
+Capture = tuple[str, str, str, bytes]
 
 
 def _select_shots(config: Config, only: list[str] | None) -> list[Shot]:
@@ -46,29 +54,47 @@ def _effective_style(shot: CliShot) -> str:
     return "native" if sys.platform == "darwin" else "rendered"
 
 
-def _resolve_cwd(shot: CliShot, repo_root: Path) -> str:
-    if shot.cwd is not None:
-        return str((repo_root / shot.cwd).resolve())
-    return str(repo_root)
+def _resolve_cwd(cwd: str | None, repo_root: Path) -> str:
+    return str((repo_root / cwd).resolve()) if cwd is not None else str(repo_root)
 
 
-def _needs_browser(selected: list[Shot]) -> bool:
-    """True if any shot must render through Chromium (web or rendered CLI)."""
-    for shot in selected:
-        if isinstance(shot, WebShot) or _effective_style(shot) == "rendered":
-            return True
+def _shot_needs_page(shot: Shot) -> bool:
+    """True if the shot must render through Chromium (web or rendered CLI)."""
+    if isinstance(shot, WebShot):
+        return True
+    if isinstance(shot, CliShot):
+        return _effective_style(shot) == "rendered"
     return False
 
 
-def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> bytes:
+def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> list[Capture]:
+    """Capture one shot, returning one or more images (sessions yield many)."""
     if isinstance(shot, WebShot):
-        assert page is not None  # guaranteed by _needs_browser
-        return capture_web(page, shot)
-    cwd = _resolve_cwd(shot, repo_root)
+        assert page is not None  # guaranteed by _shot_needs_page
+        return [(shot.name, shot.alt, "web", capture_web(page, shot))]
+
+    if isinstance(shot, SessionShot):
+        cwd = _resolve_cwd(shot.cwd, repo_root)
+        steps = [
+            (
+                step.command,
+                step.clear if step.clear is not None else shot.clear_between,
+                step.wait_ms,
+            )
+            for step in shot.steps
+        ]
+        images = capture_terminal_session(steps, cwd, shot.cols, shot.rows)
+        return [
+            (step.name, step.alt, "session", data)
+            for step, data in zip(shot.steps, images, strict=True)
+        ]
+
+    cwd = _resolve_cwd(shot.cwd, repo_root)
     if _effective_style(shot) == "native":
-        return capture_terminal(shot.command, cwd, shot.cols, shot.rows)
+        data = capture_terminal(shot.command, cwd, shot.cols, shot.rows)
+        return [(shot.name, shot.alt, "cli", data)]
     assert page is not None  # rendered CLI needs the browser
-    return capture_cli(page, shot, cwd)
+    return [(shot.name, shot.alt, "cli", capture_cli(page, shot, cwd))]
 
 
 def _capture_all(
@@ -78,14 +104,17 @@ def _capture_all(
     browser: Browser | None,
 ) -> list[CaptureResult]:
     results: list[CaptureResult] = []
-    for index, shot in enumerate(selected, start=1):
-        page = browser.new_page() if browser is not None else None
+    index = 0
+    for shot in selected:
+        page = browser.new_page() if (browser is not None and _shot_needs_page(shot)) else None
         try:
-            data = _capture_shot(shot, repo_root, page)
+            captures = _capture_shot(shot, repo_root, page)
         finally:
             if page is not None:
                 page.close()
-        results.append(writer.write(index, shot.name, data, shot.alt, shot.kind))
+        for name, alt, kind, data in captures:
+            index += 1
+            results.append(writer.write(index, name, data, alt, kind))
     return results
 
 
@@ -97,9 +126,9 @@ def run(
     """Capture the configured shots and return their on-disk results.
 
     Boots ``config.app`` when present (waiting on ``ready`` if given), captures
-    each selected shot to ``NN-name.png`` via :class:`~capture.output.Writer`,
-    and optionally splices the images into the README. The browser (when used)
-    and the app are always torn down, even on error.
+    each selected shot to ``NN-name.png`` via :class:`~capture.output.Writer`
+    (a session expands to one image per step), and optionally splices the images
+    into the README. The browser (when used) and the app are always torn down.
     """
     selected = _select_shots(config, only)
     writer = Writer(config.output, repo_root)
@@ -117,7 +146,7 @@ def run(
         if app is not None and config.app is not None and config.app.ready is not None:
             app.wait_ready(config.app.ready)
 
-        if _needs_browser(selected):
+        if any(_shot_needs_page(shot) for shot in selected):
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
                 try:

@@ -1,12 +1,21 @@
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from capture.backends.native_terminal import NativeCaptureError, capture_terminal
+from capture.backends.native_terminal import (
+    NativeCaptureError,
+    capture_terminal,
+    capture_terminal_session,
+)
 
 _SYS = "capture.backends.native_terminal.sys.platform"
 _RUN = "capture.backends.native_terminal.subprocess.run"
+_CREATE = "capture.backends.native_terminal._create_session"
+_STEP = "capture.backends.native_terminal._run_step"
+_CLOSE = "capture.backends.native_terminal._close_session"
 
 
 def test_requires_macos(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -55,3 +64,60 @@ def test_timeout_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_RUN, fake_run)
     with pytest.raises(NativeCaptureError, match="timed out"):
         capture_terminal("sleep 5", "/tmp", 80, 24)
+
+
+def test_session_requires_macos(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_SYS, "linux")
+    with pytest.raises(NativeCaptureError, match="macOS"):
+        capture_terminal_session([("echo a", True, 0)], "/tmp", 80, 24)
+
+
+def test_session_captures_each_step_in_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_SYS, "darwin")
+    calls: list[tuple[str, str, bool, int]] = []
+    closed: list[str] = []
+
+    monkeypatch.setattr(_CREATE, lambda cwd, cols, rows: "777")
+
+    def fake_step(wid: str, command: str, clear: bool, wait_ms: int, out_path: str) -> None:
+        calls.append((wid, command, clear, wait_ms))
+        Path(out_path).write_bytes(b"\x89PNG\r\n\x1a\n" + command.encode())
+
+    monkeypatch.setattr(_STEP, fake_step)
+    monkeypatch.setattr(_CLOSE, lambda wid: closed.append(wid))
+
+    images = capture_terminal_session(
+        [("echo a", True, 0), ("echo b", False, 100)], "/work", 90, 22
+    )
+
+    assert len(images) == 2
+    assert images[0].startswith(b"\x89PNG\r\n\x1a\n")
+    assert calls == [("777", "echo a", True, 0), ("777", "echo b", False, 100)]
+    assert closed == ["777"]  # window closed exactly once, at the end
+
+
+def test_session_closes_window_even_on_step_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_SYS, "darwin")
+    closed: list[str] = []
+    monkeypatch.setattr(_CREATE, lambda cwd, cols, rows: "5")
+
+    def boom(wid: str, command: str, clear: bool, wait_ms: int, out_path: str) -> None:
+        raise NativeCaptureError("step blew up")
+
+    monkeypatch.setattr(_STEP, boom)
+    monkeypatch.setattr(_CLOSE, lambda wid: closed.append(wid))
+
+    with pytest.raises(NativeCaptureError, match="blew up"):
+        capture_terminal_session([("echo a", True, 0)], "/tmp", 80, 24)
+    assert closed == ["5"]
+
+
+@pytest.mark.skipif(
+    sys.platform != "darwin" or os.environ.get("CAPTURE_E2E") != "1",
+    reason="real Terminal capture; set CAPTURE_E2E=1 on macOS to run",
+)
+def test_real_capture_e2e(tmp_path: Path) -> None:
+    """Genuinely drive Terminal.app and screenshot it (opt-in, not in CI)."""
+    data = capture_terminal("echo e2e-ok", str(tmp_path), 70, 8)
+    assert data.startswith(b"\x89PNG\r\n\x1a\n")
+    assert len(data) > 1000

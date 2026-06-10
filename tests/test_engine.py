@@ -18,7 +18,17 @@ from pathlib import Path
 
 import pytest
 
-from capture.config import AppSpec, CliShot, Config, OutputSpec, ReadySpec, Viewport, WebShot
+from capture.config import (
+    AppSpec,
+    CliShot,
+    Config,
+    OutputSpec,
+    ReadySpec,
+    SessionShot,
+    SessionStep,
+    Viewport,
+    WebShot,
+)
 from capture.engine import run
 from capture.output import CaptureResult
 from tests.conftest import PNG_MAGIC
@@ -27,6 +37,20 @@ INDEX_HTML = (
     "<!doctype html><html><head><meta charset='utf-8'></head>"
     "<body><h1>hello capture</h1></body></html>"
 )
+
+
+def _fake_terminal(command: str, cwd: str, cols: int, rows: int) -> bytes:
+    """Stand in for the real Terminal screenshot — no GUI in tests."""
+    return PNG_MAGIC + command.encode()
+
+
+def _fake_session(
+    steps: list[tuple[str, bool, int]],
+    cwd: str,
+    cols: int,
+    rows: int,
+) -> list[bytes]:
+    return [PNG_MAGIC + command.encode() for command, _clear, _wait in steps]
 
 
 def run_engine(
@@ -68,11 +92,12 @@ def connectable(port: int) -> bool:
         return False
 
 
-def test_cli_shot_only(tmp_path: Path) -> None:
+def test_cli_shot_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
-        shots=[CliShot(name="greet", kind="cli", command="echo hello", style="rendered")],
+        shots=[CliShot(name="greet", kind="cli", command="echo hello")],
     )
     results = run_engine(config, tmp_path)
 
@@ -84,13 +109,14 @@ def test_cli_shot_only(tmp_path: Path) -> None:
     assert results[0].name == "greet"
 
 
-def test_only_filter_selects_one(tmp_path: Path) -> None:
+def test_only_filter_selects_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
         shots=[
-            CliShot(name="first", kind="cli", command="echo one", style="rendered"),
-            CliShot(name="second", kind="cli", command="echo two", style="rendered"),
+            CliShot(name="first", kind="cli", command="echo one"),
+            CliShot(name="second", kind="cli", command="echo two"),
         ],
     )
     results = run_engine(config, tmp_path, only=["second"])
@@ -104,7 +130,7 @@ def test_only_filter_unknown_name_raises(tmp_path: Path) -> None:
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
-        shots=[CliShot(name="first", kind="cli", command="echo one", style="rendered")],
+        shots=[CliShot(name="first", kind="cli", command="echo one")],
     )
     with pytest.raises(ValueError, match="nope"):
         run_engine(config, tmp_path, only=["nope"])
@@ -140,19 +166,12 @@ def test_web_shot_with_app_lifecycle(tmp_path: Path) -> None:
     assert not connectable(port)
 
 
-def test_readme_insertion(tmp_path: Path) -> None:
+def test_readme_insertion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots", readme="README.md"),
         app=None,
-        shots=[
-            CliShot(
-                name="greet",
-                kind="cli",
-                command="echo hi",
-                alt="a greeting",
-                style="rendered",
-            )
-        ],
+        shots=[CliShot(name="greet", kind="cli", command="echo hi", alt="a greeting")],
     )
     run_engine(config, tmp_path)
 
@@ -161,3 +180,29 @@ def test_readme_insertion(tmp_path: Path) -> None:
     text = readme.read_text()
     assert "<!-- capture:start -->" in text
     assert "<img" in text
+
+
+def test_session_expands_to_numbered_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal_session", _fake_session)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[
+            SessionShot(
+                name="flow",
+                kind="session",
+                steps=[
+                    SessionStep(name="first", command="echo one", alt="step one"),
+                    SessionStep(name="second", command="echo two"),
+                ],
+            )
+        ],
+    )
+    results = run_engine(config, tmp_path)
+
+    assert len(results) == 2
+    assert [r.name for r in results] == ["first", "second"]
+    assert (tmp_path / "shots" / "01-first.png").exists()
+    assert (tmp_path / "shots" / "02-second.png").exists()

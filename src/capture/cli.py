@@ -57,6 +57,15 @@ shots:
     # cols: 90         # terminal width; rows controls window height
     # rows: 20
     alt: "Top-level CLI help output"
+
+  # A session captures a stateful, multi-command flow in ONE persistent Terminal
+  # window (macOS): the shell state carries across steps, one screenshot per step.
+  # - name: demo-flow
+  #   kind: session
+  #   clear_between: true
+  #   steps:
+  #     - { name: step-one, command: "mytool init", alt: "first command" }
+  #     - { name: step-two, command: "mytool run",  alt: "second, same shell" }
 """
 
 

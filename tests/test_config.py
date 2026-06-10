@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from capture.config import CliShot, Config, ConfigError, WebShot, load
+from capture.config import CliShot, Config, ConfigError, SessionShot, WebShot, load
 
 
 def write(tmp_path: Path, text: str) -> Path:
@@ -223,6 +223,59 @@ def test_cli_shot_invalid_style_rejected(tmp_path: Path) -> None:
             write(
                 tmp_path,
                 'shots:\n  - { name: a, kind: cli, command: "echo hi", style: fancy }\n',
+            )
+        )
+
+
+def test_session_shot_parses(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            """
+            shots:
+              - name: flow
+                kind: session
+                cwd: .
+                cols: 90
+                rows: 22
+                steps:
+                  - name: status
+                    command: "git status"
+                    alt: "status"
+                  - name: staged
+                    command: "git add -A"
+                    wait_ms: 200
+            """,
+        )
+    )
+    shot = cfg.shots[0]
+    assert isinstance(shot, SessionShot)
+    assert shot.clear_between is True
+    assert len(shot.steps) == 2
+    assert shot.steps[0].name == "status"
+    assert shot.steps[1].wait_ms == 200
+
+
+def test_session_requires_at_least_one_step(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError):
+        load(write(tmp_path, "shots:\n  - { name: flow, kind: session, steps: [] }\n"))
+
+
+def test_session_step_name_collision_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="collide"):
+        load(
+            write(
+                tmp_path,
+                """
+                shots:
+                  - name: a
+                    kind: cli
+                    command: "echo hi"
+                  - name: sess
+                    kind: session
+                    steps:
+                      - { name: a, command: "echo x" }
+                """,
             )
         )
 
