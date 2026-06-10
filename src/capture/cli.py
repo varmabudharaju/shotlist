@@ -90,7 +90,7 @@ def validate(
 @app.command()
 def run(
     config: str = typer.Option(".capture.yaml", "--config", "-c"),  # noqa: B008
-    only: list[str] = typer.Option(default_factory=list),  # noqa: B008
+    only: list[str] = typer.Option(default_factory=list, show_default=False),  # noqa: B008
     version: str | None = typer.Option(None),
 ) -> None:
     """Capture all configured shots (filter with --only)."""
