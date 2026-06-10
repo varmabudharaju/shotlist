@@ -189,6 +189,44 @@ def test_valid_steps_parse(tmp_path: Path) -> None:
     assert cfg.shots[0].steps[1].fill == ["#email", "demo@example.com"]
 
 
+def test_cli_shot_style_and_rows(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            """
+            shots:
+              - name: a
+                kind: cli
+                command: "echo hi"
+                rows: 24
+                style: native
+            """,
+        )
+    )
+    shot = cfg.shots[0]
+    assert isinstance(shot, CliShot)
+    assert shot.rows == 24
+    assert shot.style == "native"
+
+
+def test_cli_shot_style_defaults_to_none(tmp_path: Path) -> None:
+    cfg = load(write(tmp_path, 'shots:\n  - { name: a, kind: cli, command: "echo hi" }\n'))
+    shot = cfg.shots[0]
+    assert isinstance(shot, CliShot)
+    assert shot.style is None
+    assert shot.rows == 30
+
+
+def test_cli_shot_invalid_style_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError):
+        load(
+            write(
+                tmp_path,
+                'shots:\n  - { name: a, kind: cli, command: "echo hi", style: fancy }\n',
+            )
+        )
+
+
 def test_invalid_yaml_raises_configerror(tmp_path: Path) -> None:
     with pytest.raises(ConfigError):
         load(write(tmp_path, "shots: [unclosed\n"))

@@ -52,6 +52,10 @@ shots:
   - name: cli-help
     kind: cli
     command: "mytool --help"
+    # style: native    # macOS default: a REAL Terminal.app screenshot.
+    #                  # use 'rendered' for a synthetic terminal card (any OS, no permission).
+    # cols: 90         # terminal width; rows controls window height
+    # rows: 20
     alt: "Top-level CLI help output"
 """
 

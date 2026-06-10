@@ -84,8 +84,13 @@ def run_command(
     return b"".join(chunks).decode(errors="replace")
 
 
-def capture_cli(page: Page, shot: CliShot) -> bytes:
-    """Run the shot's command and return a PNG of its rendered terminal output."""
-    raw = run_command(shot.command, shot.cwd, shot.cols)
+def capture_cli(page: Page, shot: CliShot, cwd: str | None = None) -> bytes:
+    """Run the shot's command and return a PNG of its rendered terminal output.
+
+    ``cwd`` overrides ``shot.cwd`` when given (the engine passes the working
+    directory resolved relative to the repo root).
+    """
+    working_dir = cwd if cwd is not None else shot.cwd
+    raw = run_command(shot.command, working_dir, shot.cols)
     page.set_content(terminal_html(ansi_to_html(raw), shot.cols))
     return page.locator(".frame").screenshot()

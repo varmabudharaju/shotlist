@@ -96,9 +96,14 @@ One rendering engine (Playwright/Chromium), two backends, glued by an engine.
   (context manager — no orphans). No-op when `app` is absent.
 - **backends/web.py** — `capture_web(page, shot) -> bytes`: navigate, run `steps`,
   screenshot full-page or element.
-- **backends/cli.py** — `capture_cli(page, shot) -> bytes`: run the command (pty
-  for color), convert ANSI→HTML (`ansi2html`), render in a terminal-window
-  template, screenshot the rendered HTML with the same Chromium.
+- **backends/cli.py** — `capture_cli(page, shot, cwd) -> bytes` (the `rendered`
+  style): run the command (pty for color), convert ANSI→HTML (`ansi2html`), render
+  in a terminal-window template, screenshot the rendered HTML with the same Chromium.
+- **backends/native_terminal.py** — `capture_terminal(command, cwd, cols, rows) ->
+  bytes` (the `native` style, macOS default): drive the real Terminal.app via
+  AppleScript and `screencapture` the actual window — an authentic screenshot.
+  Needs Screen-Recording permission. Engine picks `native` on macOS, `rendered`
+  elsewhere, unless the shot sets `style:` explicitly.
 - **render.py** — terminal-window HTML template + ANSI→HTML helper.
 - **output.py** — `Writer`: filename `NN-name.png`, write under
   `dir/[version]/`, build `<img width="100%" alt="...">` snippets, optionally

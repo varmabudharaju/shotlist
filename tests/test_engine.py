@@ -72,7 +72,7 @@ def test_cli_shot_only(tmp_path: Path) -> None:
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
-        shots=[CliShot(name="greet", kind="cli", command="echo hello")],
+        shots=[CliShot(name="greet", kind="cli", command="echo hello", style="rendered")],
     )
     results = run_engine(config, tmp_path)
 
@@ -89,8 +89,8 @@ def test_only_filter_selects_one(tmp_path: Path) -> None:
         output=OutputSpec(dir="shots"),
         app=None,
         shots=[
-            CliShot(name="first", kind="cli", command="echo one"),
-            CliShot(name="second", kind="cli", command="echo two"),
+            CliShot(name="first", kind="cli", command="echo one", style="rendered"),
+            CliShot(name="second", kind="cli", command="echo two", style="rendered"),
         ],
     )
     results = run_engine(config, tmp_path, only=["second"])
@@ -104,7 +104,7 @@ def test_only_filter_unknown_name_raises(tmp_path: Path) -> None:
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
-        shots=[CliShot(name="first", kind="cli", command="echo one")],
+        shots=[CliShot(name="first", kind="cli", command="echo one", style="rendered")],
     )
     with pytest.raises(ValueError, match="nope"):
         run_engine(config, tmp_path, only=["nope"])
@@ -144,7 +144,15 @@ def test_readme_insertion(tmp_path: Path) -> None:
     config = Config(
         output=OutputSpec(dir="shots", readme="README.md"),
         app=None,
-        shots=[CliShot(name="greet", kind="cli", command="echo hi", alt="a greeting")],
+        shots=[
+            CliShot(
+                name="greet",
+                kind="cli",
+                command="echo hi",
+                alt="a greeting",
+                style="rendered",
+            )
+        ],
     )
     run_engine(config, tmp_path)
 

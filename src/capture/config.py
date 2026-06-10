@@ -81,6 +81,8 @@ class CliShot(_Strict):
     command: str
     cwd: str | None = None
     cols: int = 100
+    rows: int = 30
+    style: Literal["native", "rendered"] | None = None
     alt: str = ""
 
 

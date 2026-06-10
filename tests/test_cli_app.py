@@ -87,6 +87,7 @@ def test_run_single_cli_shot(tmp_path: Path) -> None:
         "  - name: greet\n"
         "    kind: cli\n"
         "    command: echo hello\n"
+        "    style: rendered\n"
     )
 
     result = invoke_run(["run", "--config", str(target)])

@@ -6,9 +6,11 @@ description: Use when the user wants screenshots of their app/CLI for docs or a 
 # capture
 
 `capture` regenerates a polished, reproducible set of screenshots from a committed
-shot list (`.capture.yaml`). It renders everything through Playwright/Chromium —
-web pages directly, CLI output as a styled terminal window — so it needs **no
-macOS Screen-Recording permission** and **no external binaries**.
+shot list (`.capture.yaml`). Web pages are real Playwright/Chromium renders. CLI
+shots, by default on macOS, are **real screenshots of the actual Terminal.app
+window** (`style: native`, needs Screen-Recording permission); set `style: rendered`
+(the default off macOS) to draw the output as a styled terminal card via Chromium
+instead — no permission needed, works in CI.
 
 Your job in this skill is to inspect the repo, author a good `.capture.yaml`,
 run `capture`, and offer to embed the images in the README. The runtime is fully
@@ -122,7 +124,9 @@ shots:
   `{ fill: ["<selector>", "<value>"] }`, `{ wait_for: "<selector>" }`,
   `{ wait_ms: <int> }`, `{ press: "<key>" }`, `{ goto: "<url>" }`.
 - CLI shot: `name`, `kind: cli`, `command`, `cwd` (optional), `cols`
-  (terminal width, default 100), `alt`.
+  (terminal width, default 100), `rows` (window height, default 30), `style`
+  (`native` real Terminal screenshot, macOS default | `rendered` synthetic card),
+  `alt`.
 
 #### Short web example
 
