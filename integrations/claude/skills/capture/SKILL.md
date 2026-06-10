@@ -1,6 +1,6 @@
 ---
 name: capture
-description: Use when the user wants screenshots of their app/CLI for docs or a README. Inspects the repo, writes a .capture.yaml shot list, runs `capture run`, and embeds the images.
+description: Use when the user wants screenshots of their app/CLI — for docs/README, posts, or as visual proof/test-evidence that features work ("test this and screenshot it as proof"). Inspects the product, writes a .capture.yaml shot list (web pages, CLI shots, persistent sessions for stateful flows), runs `capture run`, and collects or embeds the images.
 ---
 
 # capture
@@ -12,10 +12,13 @@ window** (`style: native`, needs Screen-Recording permission); set `style: rende
 (the default off macOS) to draw the output as a styled terminal card via Chromium
 instead — no permission needed, works in CI.
 
-Your job in this skill is to inspect the repo, author a good `.capture.yaml`,
-run `capture`, and offer to embed the images in the README. The runtime is fully
-deterministic; the only "intelligence" needed is generating the shot list, which
-is what you are here to do.
+Your job in this skill is to inspect the product, author a good `.capture.yaml`
+covering each feature/flow, run `capture`, and then either embed the images in the
+README or collect them as **proof / test-evidence** — e.g. a `docs/test-evidence.md`
+with one captioned shot per feature showing it actually works. For multi-step or
+stateful flows (and long-running processes), use a `session` shot so several
+commands run in one persistent terminal. The runtime is fully deterministic; the
+only "intelligence" needed is generating the shot list, which is what you do here.
 
 ## Prerequisites
 
