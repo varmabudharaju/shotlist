@@ -1,10 +1,29 @@
 # capture
 
+[![CI](https://github.com/varmabudharaju/capture/actions/workflows/ci.yml/badge.svg)](https://github.com/varmabudharaju/capture/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **Reproducible screenshot capture for docs.** Describe *how to start your app* and
 *what to capture* once, in a committed shot list — then regenerate every README,
 blog, or test-evidence screenshot with a single command.
 
-> Status: early development. See [`docs/design.md`](docs/design.md) for the full design.
+See the full design in [`docs/design.md`](docs/design.md).
+
+## See it in action
+
+`capture` dogfoods itself — the shots below are produced by running `capture run` on this repo's own [`.capture.yaml`](.capture.yaml).
+
+<!-- capture:start -->
+### The capture CLI
+
+<img src="docs/screenshots/01-the-capture-cli.png" width="100%" alt="capture --help showing the init, validate, and run commands"/>
+
+### Run options
+
+<img src="docs/screenshots/02-run-options.png" width="100%" alt="capture run options: --config, --only, and --version"/>
+
+<!-- capture:end -->
 
 ## Why
 

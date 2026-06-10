@@ -1,0 +1,18 @@
+# capture dogfoods itself: these shots screenshot capture's own CLI for the README.
+# Regenerate them any time with:  capture run
+output:
+  dir: docs/screenshots
+  readme: README.md
+
+shots:
+  - name: The capture CLI
+    kind: cli
+    command: ".venv/bin/capture --help"
+    cols: 80
+    alt: "capture --help showing the init, validate, and run commands"
+
+  - name: Run options
+    kind: cli
+    command: ".venv/bin/capture run --help"
+    cols: 80
+    alt: "capture run options: --config, --only, and --version"
