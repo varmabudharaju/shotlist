@@ -90,7 +90,8 @@ One rendering engine (Playwright/Chromium), two backends, glued by an engine.
 ### Modules (`src/capture/`)
 
 - **config.py** — Pydantic models (`Config`, `AppSpec`, `ReadySpec`, `Shot`,
-  `WebShot`, `CliShot`, `OutputSpec`) + `load(path)` with clear validation errors.
+  `WebShot`, `CliShot`, `SessionShot`/`SessionStep`, `OutputSpec`) + `load(path)`
+  with clear validation errors. A `session` shot expands to one image per step.
 - **lifecycle.py** — `AppProcess`: spawn in its own process group, poll readiness
   (HTTP / TCP port / log line) with timeout, terminate the whole group on exit
   (context manager — no orphans). No-op when `app` is absent.

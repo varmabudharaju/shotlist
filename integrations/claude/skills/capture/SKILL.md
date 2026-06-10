@@ -127,6 +127,11 @@ shots:
   (terminal width, default 100), `rows` (window height, default 30), `style`
   (`native` real Terminal screenshot, macOS default | `rendered` synthetic card),
   `alt`.
+- Session shot (macOS, real Terminal): `name`, `kind: session`, `cwd`, `cols`,
+  `rows`, `clear_between` (default true), `steps` — each step is
+  `{ name, command, alt, wait_ms, clear }`. Runs every step in ONE persistent
+  Terminal (shell state persists), one screenshot per step. Use for stateful
+  multi-command flows or long-running processes (background with `&` + `wait_ms`).
 
 #### Short web example
 

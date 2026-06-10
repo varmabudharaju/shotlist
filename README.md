@@ -73,7 +73,37 @@ are, by default on macOS, *real screenshots of your actual Terminal.app window*
 `style: rendered`) the command output is drawn as a styled terminal card instead,
 which needs no Screen-Recording permission and works in CI.
 
-No macOS Screen-Recording permission, no external binaries, no cloud, no paid services.
+Native Terminal capture needs Screen-Recording permission (System Settings →
+Privacy & Security); web and rendered capture need nothing. No cloud, no paid services.
+
+## Capture a whole flow (sessions)
+
+A `session` shot runs several commands in **one persistent Terminal window** — the
+shell state (cwd, env, background processes) carries across steps, and you get one
+screenshot per step. The window opens once, captures after each command, and closes
+at the end:
+
+```yaml
+shots:
+  - name: git-demo
+    kind: session
+    clear_between: true       # clean screen per step; the shell keeps running
+    steps:
+      - name: status
+        command: "git status"
+        alt: "before staging"
+      - name: staged
+        command: "git add -A && git status"
+        alt: "after staging"
+      - name: serve
+        command: "python -m http.server 8000 &"   # background long-running procs
+        wait_ms: 600                               # give it time to boot
+        alt: "dev server running"
+```
+
+This is how you screenshot a stateful flow — or capture a long-running process:
+background it with `&` and a small `wait_ms`, keep capturing, and the session
+tears it down on close. (macOS / `native`.)
 
 ## Install
 
