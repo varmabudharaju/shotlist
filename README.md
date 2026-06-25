@@ -59,6 +59,12 @@ the shell state (cwd, env, background processes) carries across. Background a
 long-running process with `&` and a small `wait_ms`, keep capturing, and the
 session tears it down on close.
 
+## Recipes
+
+Copy-paste `.capture.yaml` configs for the common jobs — test-evidence proofs, CI
+regeneration, long-running servers, web flows with interactions, versioned visual
+history — live in **[`docs/recipes.md`](docs/recipes.md)**.
+
 ## Why capture, and not the others
 
 The pieces exist in isolation; `capture` is the one tool that does all of it under
