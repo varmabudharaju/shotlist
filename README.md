@@ -8,7 +8,7 @@
 web pages, your *real* terminal windows, and stateful CLI sessions — and
 regenerates them all with a single command.
 
-<img src="docs/demo.gif" width="100%" alt="The old way: dragging Screen Shot 2026-... files into ever-more-cursed filenames, then shipping a UI tweak that makes them all stale. The capture way: one `capture run`."/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/demo.gif" width="100%" alt="The old way: dragging Screen Shot 2026-... files into ever-more-cursed filenames, then shipping a UI tweak that makes them all stale. The capture way: one `capture run`."/>
 
 ## The problem
 
@@ -24,8 +24,8 @@ demand — locally or in CI. Same config + same app state → same screenshots.
 ## Quickstart
 
 ```bash
-pipx install git+https://github.com/varmabudharaju/capture   # or: uv tool install
-playwright install chromium                                  # one-time browser download
+pip install capture-shots        # the `capture` command (the name `capture` was taken on PyPI)
+playwright install chromium      # one-time browser download
 
 capture init        # writes a starter .capture.yaml
 capture run         # boots your app, captures every shot, tears it all down
@@ -108,11 +108,11 @@ on its own [`.capture.yaml`](.capture.yaml) and spliced in automatically.
 <!-- capture:start -->
 ### The capture CLI
 
-<img src="docs/screenshots/01-the-capture-cli.png" width="100%" alt="capture --help showing the init, validate, and run commands"/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/screenshots/01-the-capture-cli.png" width="100%" alt="capture --help showing the init, validate, and run commands"/>
 
 ### Run options
 
-<img src="docs/screenshots/02-run-options.png" width="100%" alt="capture run options: --config, --only, and --version"/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/screenshots/02-run-options.png" width="100%" alt="capture run options: --config, --only, and --version"/>
 
 <!-- capture:end -->
 

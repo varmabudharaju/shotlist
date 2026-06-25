@@ -26,7 +26,6 @@ whole screenshot set on demand.
 
 ## Non-goals (YAGNI)
 
-- No PyPI publishing (installable from source).
 - No hosted/SaaS component.
 - No desktop-GUI backend in v1 (designed so it can be added).
 

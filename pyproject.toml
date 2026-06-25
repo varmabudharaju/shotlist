@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "capture"
+name = "capture-shots"
 version = "0.1.0"
 description = "Reproducible screenshot capture for docs — drive a web app or CLI from a declarative shot list and capture polished feature screenshots."
 readme = "README.md"
@@ -34,9 +34,19 @@ capture = "capture.cli:app"
 [project.urls]
 Homepage = "https://github.com/varmabudharaju/capture"
 Repository = "https://github.com/varmabudharaju/capture"
+Issues = "https://github.com/varmabudharaju/capture/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/capture"]
+
+[tool.hatch.build.targets.sdist]
+# The README links images by absolute URL, so the package doesn't need to ship
+# the screenshots, the demo GIF, or the GIF source. Keeps the sdist small.
+exclude = [
+    "docs/screenshots",
+    "docs/demo.gif",
+    "demo",
+]
 
 [tool.ruff]
 line-length = 100
