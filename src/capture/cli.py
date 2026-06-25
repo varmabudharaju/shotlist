@@ -101,14 +101,21 @@ def run(
     config: str = typer.Option(".capture.yaml", "--config", "-c"),  # noqa: B008
     only: list[str] = typer.Option(default_factory=list, show_default=False),  # noqa: B008
     version: str | None = typer.Option(None),
+    report: bool | None = typer.Option(
+        None,
+        "--report/--no-report",
+        help="Write manifest.json + index.html beside the shots (default: on).",
+    ),
 ) -> None:
     """Capture all configured shots (filter with --only)."""
     try:
         cfg = config_module.load(config)
         if version is not None:
             cfg.output.version = version
+        if report is not None:
+            cfg.output.report = report
         repo_root = Path(config).resolve().parent
-        results = engine.run(cfg, repo_root, only or None)
+        results = engine.run(cfg, repo_root, only or None, config_path=config)
     except (config_module.ConfigError, ReadinessError) as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc

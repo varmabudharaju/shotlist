@@ -145,6 +145,7 @@ class OutputSpec(_Strict):
     dir: str = "docs/screenshots"
     version: str | None = None
     readme: str | None = None
+    report: bool = True  # write manifest.json + index.html gallery alongside the PNGs
 
 
 class Config(_Strict):

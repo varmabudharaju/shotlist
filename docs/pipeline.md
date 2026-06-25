@@ -1,0 +1,66 @@
+# Pipeline & proof reports
+
+Every `capture run` writes two extra files into the output directory, right next
+to the PNGs:
+
+- **`index.html`** — a self-contained gallery (a *proof report*): open it in a
+  browser, share it, or attach it to a test-case doc.
+- **`manifest.json`** — a machine-readable record of the run, for pipelines.
+
+![The generated gallery](proof-report.png)
+
+Both reference the images by bare filename, so the output directory is portable —
+copy `docs/screenshots/` anywhere and the gallery still renders.
+
+## The manifest
+
+```json
+{
+  "schema_version": "1",
+  "generated_at": "2026-06-25T23:27:13Z",
+  "config": ".capture.yaml",
+  "shot_count": 2,
+  "shots": [
+    { "index": 1, "name": "cli-help", "kind": "cli", "alt": "capture top-level help",
+      "file": "01-cli-help.png", "bytes": 35864 }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `schema_version` | Manifest format version — bumped only on a breaking change. |
+| `generated_at` | UTC timestamp of the run (ISO-8601). |
+| `config` | The shot list the run used (the `--config` path). |
+| `shot_count` | Number of images produced. |
+| `shots[]` | Per image: `index`, `name`, `kind` (`web`/`cli`/`session`), `alt`, `file` (bare PNG filename), and `bytes`. |
+
+## In a pipeline
+
+The manifest makes a run scriptable — assert a count, attach it as a build
+artifact, or gate on drift:
+
+```bash
+capture run
+test "$(jq .shot_count docs/screenshots/manifest.json)" -ge 5   # expect ≥ 5 shots
+
+# catch screenshots that drifted from what's committed
+git diff --exit-code docs/screenshots
+```
+
+See [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci) for a full
+GitHub Actions example.
+
+## Turning it off
+
+The report is on by default. Disable it per run or per repo:
+
+```bash
+capture run --no-report
+```
+
+```yaml
+output:
+  dir: docs/screenshots
+  report: false
+```

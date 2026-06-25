@@ -11,6 +11,7 @@ engine on a fresh worker thread, which has no running event loop — the standar
 way to use the sync Playwright API alongside another sync session.
 """
 
+import json
 import socket
 import sys
 import threading
@@ -206,3 +207,39 @@ def test_session_expands_to_numbered_results(
     assert [r.name for r in results] == ["first", "second"]
     assert (tmp_path / "shots" / "01-first.png").exists()
     assert (tmp_path / "shots" / "02-second.png").exists()
+
+
+def test_run_writes_manifest_and_gallery_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hi", alt="a greeting")],
+    )
+    run_engine(config, tmp_path)
+
+    target = tmp_path / "shots"
+    assert (target / "manifest.json").exists()
+    assert (target / "index.html").exists()
+    manifest = json.loads((target / "manifest.json").read_text())
+    assert manifest["shot_count"] == 1
+    assert manifest["shots"][0]["name"] == "greet"
+    assert manifest["shots"][0]["file"] == "01-greet.png"
+
+
+def test_run_report_can_be_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots", report=False),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hi")],
+    )
+    run_engine(config, tmp_path)
+
+    target = tmp_path / "shots"
+    assert not (target / "manifest.json").exists()
+    assert not (target / "index.html").exists()

@@ -34,8 +34,8 @@ shots:
 ```
 
 → `01-register.png`, `02-login.png`, `03-whoami.png`, plus a `manifest.json` and a
-browsable `index.html` proof report you can attach to a test-case doc. macOS uses
-a real Terminal window; elsewhere set `style` per shot.
+browsable `index.html` [proof report](pipeline.md) you can attach to a test-case
+doc. macOS uses a real Terminal window; elsewhere set `style` per shot.
 
 ## 2. Regenerate docs screenshots in CI
 

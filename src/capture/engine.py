@@ -14,6 +14,7 @@ guarantees the browser is closed and the app is stopped even when capture fails.
 """
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from playwright.sync_api import Browser, Page, sync_playwright
@@ -24,6 +25,7 @@ from capture.backends.web import capture_web
 from capture.config import CliShot, Config, SessionShot, WebShot
 from capture.lifecycle import AppProcess
 from capture.output import CaptureResult, Writer
+from capture.report import write_report
 
 Shot = WebShot | CliShot | SessionShot
 
@@ -122,13 +124,16 @@ def run(
     config: Config,
     repo_root: Path,
     only: list[str] | None = None,
+    config_path: str | None = None,
 ) -> list[CaptureResult]:
     """Capture the configured shots and return their on-disk results.
 
     Boots ``config.app`` when present (waiting on ``ready`` if given), captures
     each selected shot to ``NN-name.png`` via :class:`~capture.output.Writer`
-    (a session expands to one image per step), and optionally splices the images
-    into the README. The browser (when used) and the app are always torn down.
+    (a session expands to one image per step), optionally splices the images into
+    the README, and—unless ``output.report`` is off—writes a ``manifest.json`` and
+    an ``index.html`` gallery beside the PNGs. The browser (when used) and the app
+    are always torn down.
     """
     selected = _select_shots(config, only)
     writer = Writer(config.output, repo_root)
@@ -161,5 +166,13 @@ def run(
 
     if config.output.readme is not None:
         writer.update_readme(results, repo_root / config.output.readme)
+
+    if config.output.report:
+        write_report(
+            results,
+            writer.target_dir(),
+            generated_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            config=config_path or "",
+        )
 
     return results

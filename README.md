@@ -65,6 +65,19 @@ Copy-paste `.capture.yaml` configs for the common jobs — test-evidence proofs,
 regeneration, long-running servers, web flows with interactions, versioned visual
 history — live in **[`docs/recipes.md`](docs/recipes.md)**.
 
+## Proof reports & pipelines
+
+Every `capture run` also writes, next to the PNGs:
+
+- **`index.html`** — a self-contained gallery you can open and share as a **proof report**;
+- **`manifest.json`** — a machine-readable record of the run (a pipeline artifact).
+
+<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/proof-report.png" width="100%" alt="The generated index.html gallery: a header with the shot count and timestamp, then a card per shot showing the screenshot, its name, a kind badge, and its alt text."/>
+
+Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Turn it
+off with `--no-report` (or `output.report: false`). Details in
+**[`docs/pipeline.md`](docs/pipeline.md)**.
+
 ## Why capture, and not the others
 
 The pieces exist in isolation; `capture` is the one tool that does all of it under

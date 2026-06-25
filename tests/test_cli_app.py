@@ -100,3 +100,27 @@ def test_run_single_cli_shot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert result.exit_code == 0, result.output
     assert (tmp_path / "shots" / "01-greet.png").exists()
     assert "captured 1 shot(s)" in result.output
+    # The report (manifest + gallery) is written by default.
+    assert (tmp_path / "shots" / "manifest.json").exists()
+    assert (tmp_path / "shots" / "index.html").exists()
+
+
+def test_run_no_report_suppresses_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".capture.yaml"
+    target.write_text(
+        "output:\n"
+        "  dir: shots\n"
+        "shots:\n"
+        "  - name: greet\n"
+        "    kind: cli\n"
+        "    command: echo hello\n"
+    )
+
+    result = invoke_run(["run", "--config", str(target), "--no-report"])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "shots" / "01-greet.png").exists()
+    assert not (tmp_path / "shots" / "manifest.json").exists()
+    assert not (tmp_path / "shots" / "index.html").exists()
