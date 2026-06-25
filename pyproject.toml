@@ -46,6 +46,7 @@ exclude = [
     "docs/screenshots",
     "docs/demo.gif",
     "docs/proof-report.png",
+    "docs/check.png",
     "demo",
 ]
 

@@ -35,21 +35,62 @@ copy `docs/screenshots/` anywhere and the gallery still renders.
 | `shot_count` | Number of images produced. |
 | `shots[]` | Per image: `index`, `name`, `kind` (`web`/`cli`/`session`), `alt`, `file` (bare PNG filename), and `bytes`. |
 
+## Drift checking — `capture check`
+
+`capture check` re-captures and **fails if anything drifted** from the committed
+`manifest.json`, comparing each shot by its `sha256`. Run it on every PR and a
+changed screen turns the build red.
+
+![capture check reporting drift](check.png)
+
+- Only **deterministic** shots (`web`, `cli·rendered`) are compared; `native`
+  Terminal screenshots can't reproduce byte-for-byte, so they're **skipped**.
+- Checking is **non-destructive** — it captures into a temp dir and never touches
+  your committed PNGs.
+- Exit is **non-zero on drift** (changed / added / removed), zero when clean.
+
+```bash
+capture check            # verify against the committed baseline
+capture check --update   # re-shoot and accept the new screenshots as the baseline
+```
+
+Snapshot ergonomics: `check` to verify, `check --update` to bless an intended
+change (like `jest -u`).
+
 ## In a pipeline
 
-The manifest makes a run scriptable — assert a count, attach it as a build
-artifact, or gate on drift:
+The manifest also makes a run scriptable — assert a count or attach it as a build
+artifact:
 
 ```bash
 capture run
 test "$(jq .shot_count docs/screenshots/manifest.json)" -ge 5   # expect ≥ 5 shots
-
-# catch screenshots that drifted from what's committed
-git diff --exit-code docs/screenshots
 ```
 
-See [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci) for a full
-GitHub Actions example.
+## GitHub Action
+
+`capture` ships a composite action — drop it into a workflow to drift-check on
+every push:
+
+```yaml
+# .github/workflows/screenshots.yml
+name: screenshots
+on: [push, pull_request]
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: varmabudharaju/capture@main      # `command` defaults to check
+```
+
+Pass `with: { command: run }` to regenerate instead, or
+`with: { config: path/to/.capture.yaml }`. Pin to a release tag once you cut one.
+
+See also [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci).
 
 ## Turning it off
 

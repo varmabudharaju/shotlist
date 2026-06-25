@@ -74,9 +74,11 @@ Every `capture run` also writes, next to the PNGs:
 
 <img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/proof-report.png" width="100%" alt="The generated index.html gallery: a header with the shot count and timestamp, then a card per shot showing the screenshot, its name, a kind badge, and its alt text."/>
 
-Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Turn it
-off with `--no-report` (or `output.report: false`). Details in
-**[`docs/pipeline.md`](docs/pipeline.md)**.
+Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Gate CI
+with **`capture check`** — it re-captures and fails when a screenshot drifts from
+the committed baseline (`capture check --update` to accept intended changes) — or
+drop in the bundled **GitHub Action**. Turn the report off with `--no-report` (or
+`output.report: false`). Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
 
 ## Why capture, and not the others
 
@@ -153,6 +155,8 @@ on its own [`.capture.yaml`](.capture.yaml) and spliced in automatically.
 | `capture run` | Capture every shot and write outputs |
 | `capture run --only dashboard` | Capture a single shot by name |
 | `capture run --version v2` | Write into a versioned subfolder |
+| `capture check` | Fail if a screenshot drifted from the committed baseline |
+| `capture check --update` | Re-shoot and accept the current screenshots as the baseline |
 
 ## Develop
 

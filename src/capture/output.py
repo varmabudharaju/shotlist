@@ -41,6 +41,9 @@ class CaptureResult:
 
     ``src`` is the POSIX path of the PNG relative to the repo root, suitable for
     dropping straight into an ``<img src="...">`` tag in committed Markdown.
+    ``deterministic`` is whether the shot reproduces byte-for-byte across runs
+    (web and rendered-CLI do; a real Terminal screenshot does not) — drift checks
+    only compare deterministic shots.
     """
 
     name: str
@@ -48,6 +51,7 @@ class CaptureResult:
     src: str
     alt: str
     kind: str
+    deterministic: bool = True
 
 
 class Writer:
@@ -71,6 +75,7 @@ class Writer:
         data: bytes,
         alt: str,
         kind: str,
+        deterministic: bool = True,
     ) -> CaptureResult:
         """Write ``data`` as ``NN-slug.png`` and describe the result."""
         target = self.target_dir()
@@ -78,8 +83,15 @@ class Writer:
         filename = f"{index:02d}-{slugify(name)}.png"
         path = target / filename
         path.write_bytes(data)
-        src = path.relative_to(self.repo_root).as_posix()
-        return CaptureResult(name=name, path=path, src=src, alt=alt, kind=kind)
+        try:
+            src = path.relative_to(self.repo_root).as_posix()
+        except ValueError:
+            # Output dir lives outside the repo root (e.g. `capture check`'s temp
+            # probe); a repo-relative src is meaningless, so use the bare filename.
+            src = filename
+        return CaptureResult(
+            name=name, path=path, src=src, alt=alt, kind=kind, deterministic=deterministic
+        )
 
     def img_snippet(self, result: CaptureResult) -> str:
         """Render the ``<img>`` tag for one result, escaping ``alt``."""

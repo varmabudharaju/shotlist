@@ -55,6 +55,18 @@ def test_write_zero_pads_index(tmp_path: Path) -> None:
     assert result.path.name == "07-x.png"
 
 
+def test_write_src_falls_back_when_outside_repo_root(tmp_path: Path) -> None:
+    # An absolute output dir outside the repo root (as `capture check` uses for its
+    # temp probe) must not crash; src degrades to the bare filename.
+    outside = tmp_path / "outside"
+    writer = Writer(OutputSpec(dir=str(outside)), tmp_path / "repo")
+
+    result = writer.write(1, "x", b"data", alt="", kind="cli")
+
+    assert result.path == outside / "01-x.png"
+    assert result.src == "01-x.png"
+
+
 def test_img_snippet_escapes_alt(tmp_path: Path) -> None:
     writer = Writer(OutputSpec(), tmp_path)
     result = CaptureResult(

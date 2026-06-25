@@ -30,7 +30,7 @@ from capture.config import (
     Viewport,
     WebShot,
 )
-from capture.engine import run
+from capture.engine import _is_deterministic, run
 from capture.output import CaptureResult
 from tests.conftest import PNG_MAGIC
 
@@ -243,3 +243,39 @@ def test_run_report_can_be_disabled(
     target = tmp_path / "shots"
     assert not (target / "manifest.json").exists()
     assert not (target / "index.html").exists()
+
+
+def test_is_deterministic_by_kind_and_style() -> None:
+    assert _is_deterministic(WebShot(name="w", kind="web", url="http://x")) is True
+    assert (
+        _is_deterministic(CliShot(name="c", kind="cli", command="x", style="rendered"))
+        is True
+    )
+    assert (
+        _is_deterministic(CliShot(name="c", kind="cli", command="x", style="native"))
+        is False
+    )
+    assert (
+        _is_deterministic(
+            SessionShot(
+                name="s", kind="session", steps=[SessionStep(name="a", command="x")]
+            )
+        )
+        is False
+    )
+
+
+def test_run_marks_native_cli_as_nondeterministic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[CliShot(name="term", kind="cli", command="echo hi", style="native")],
+    )
+    run_engine(config, tmp_path)
+
+    manifest = json.loads((tmp_path / "shots" / "manifest.json").read_text())
+    assert manifest["shots"][0]["deterministic"] is False
+    assert manifest["shots"][0]["sha256"]

@@ -124,3 +124,60 @@ def test_run_no_report_suppresses_artifacts(
     assert (tmp_path / "shots" / "01-greet.png").exists()
     assert not (tmp_path / "shots" / "manifest.json").exists()
     assert not (tmp_path / "shots" / "index.html").exists()
+
+
+_NATIVE_CONFIG = (
+    "output:\n"
+    "  dir: shots\n"
+    "shots:\n"
+    "  - name: greet\n"
+    "    kind: cli\n"
+    "    command: echo hi\n"
+    "    style: native\n"
+)
+
+
+def test_check_errors_without_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".capture.yaml"
+    target.write_text(_NATIVE_CONFIG)
+
+    result = invoke_run(["check", "--config", str(target)])
+    assert result.exit_code != 0
+    assert "baseline" in result.output.lower()
+
+
+def test_check_update_then_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".capture.yaml"
+    target.write_text(_NATIVE_CONFIG)
+
+    upd = invoke_run(["check", "--update", "--config", str(target)])
+    assert upd.exit_code == 0, upd.output
+    assert (tmp_path / "shots" / "manifest.json").exists()
+
+    # The native shot can't be compared, so check is clean (skipped, not drift).
+    chk = invoke_run(["check", "--config", str(target)])
+    assert chk.exit_code == 0, chk.output
+
+
+def test_check_detects_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    box = {"data": b"\x89PNG\r\n\x1a\nA"}
+    monkeypatch.setattr("capture.engine.capture_web", lambda page, shot: box["data"])
+    target = tmp_path / ".capture.yaml"
+    target.write_text(
+        "output:\n  dir: shots\n"
+        "shots:\n  - name: home\n    kind: web\n    url: http://localhost/\n"
+    )
+
+    assert invoke_run(["check", "--update", "--config", str(target)]).exit_code == 0
+    # Same bytes → no drift.
+    assert invoke_run(["check", "--config", str(target)]).exit_code == 0
+    # The page "changes" → drift → non-zero exit.
+    box["data"] = b"\x89PNG\r\n\x1a\nB"
+    drifted = invoke_run(["check", "--config", str(target)])
+    assert drifted.exit_code != 0, drifted.output

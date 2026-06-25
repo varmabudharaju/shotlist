@@ -1,0 +1,28 @@
+name: "capture screenshots"
+description: "Regenerate or drift-check your documentation screenshots with capture."
+branding:
+  icon: "camera"
+  color: "purple"
+
+inputs:
+  command:
+    description: "Subcommand to run: 'check' (fail on drift) or 'run' (regenerate)."
+    required: false
+    default: "check"
+  config:
+    description: "Path to the shot list."
+    required: false
+    default: ".capture.yaml"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install capture
+      shell: bash
+      run: pip install capture-shots
+    - name: Install Chromium
+      shell: bash
+      run: python -m playwright install --with-deps chromium
+    - name: capture ${{ inputs.command }}
+      shell: bash
+      run: capture ${{ inputs.command }} --config "${{ inputs.config }}"

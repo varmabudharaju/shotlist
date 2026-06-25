@@ -65,8 +65,15 @@ jobs:
           path: docs/screenshots        # PNGs + manifest.json + index.html
 ```
 
-Upload `docs/screenshots` as a build artifact, or commit it back with a
-`git diff --exit-code` gate to catch drift.
+Upload `docs/screenshots` as a build artifact, or replace the last step with the
+bundled action to **fail the build on drift**:
+
+```yaml
+      - uses: varmabudharaju/capture@main   # runs `capture check` by default
+```
+
+See [Pipeline & proof reports](pipeline.md) for the manifest schema and
+`capture check`.
 
 ## 3. Capture a long-running server
 

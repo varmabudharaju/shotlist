@@ -56,6 +56,19 @@ def _effective_style(shot: CliShot) -> str:
     return "native" if sys.platform == "darwin" else "rendered"
 
 
+def _is_deterministic(shot: Shot) -> bool:
+    """Whether a shot reproduces byte-for-byte across runs (so it can be drift-checked).
+
+    Web pages and *rendered* CLI cards are Chromium renders and reproduce; a real
+    Terminal screenshot (``native`` CLI and every ``session``) does not.
+    """
+    if isinstance(shot, WebShot):
+        return True
+    if isinstance(shot, CliShot):
+        return _effective_style(shot) == "rendered"
+    return False
+
+
 def _resolve_cwd(cwd: str | None, repo_root: Path) -> str:
     return str((repo_root / cwd).resolve()) if cwd is not None else str(repo_root)
 
@@ -114,9 +127,10 @@ def _capture_all(
         finally:
             if page is not None:
                 page.close()
+        deterministic = _is_deterministic(shot)
         for name, alt, kind, data in captures:
             index += 1
-            results.append(writer.write(index, name, data, alt, kind))
+            results.append(writer.write(index, name, data, alt, kind, deterministic))
     return results
 
 

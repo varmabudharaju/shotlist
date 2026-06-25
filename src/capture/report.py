@@ -11,6 +11,7 @@ Both reference the images by bare filename, so the output directory is portable:
 copy it anywhere and the gallery still renders.
 """
 
+import hashlib
 import html
 import json
 from dataclasses import dataclass
@@ -33,6 +34,8 @@ class ShotEntry(TypedDict):
     alt: str
     file: str
     bytes: int
+    sha256: str
+    deterministic: bool
 
 
 class Manifest(TypedDict):
@@ -72,6 +75,8 @@ def build_manifest(
             "alt": result.alt,
             "file": result.path.name,
             "bytes": result.path.stat().st_size,
+            "sha256": hashlib.sha256(result.path.read_bytes()).hexdigest(),
+            "deterministic": result.deterministic,
         }
         for index, result in enumerate(results, start=1)
     ]
