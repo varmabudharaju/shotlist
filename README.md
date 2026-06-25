@@ -4,15 +4,106 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Reproducible screenshot capture for docs.** Describe *how to start your app* and
-*what to capture* once, in a committed shot list — then regenerate every README,
-blog, or test-evidence screenshot with a single command.
+**Screenshots for your docs — as code.** One committed shot list captures your
+web pages, your *real* terminal windows, and stateful CLI sessions — and
+regenerates them all with a single command.
 
-See the full design in [`docs/design.md`](docs/design.md).
+<img src="docs/demo.gif" width="100%" alt="The old way: dragging Screen Shot 2026-... files into ever-more-cursed filenames, then shipping a UI tweak that makes them all stale. The capture way: one `capture run`."/>
 
-## See it in action
+## The problem
 
-`capture` dogfoods itself — the shots below are produced by running `capture run` on this repo's own [`.capture.yaml`](.capture.yaml).
+Documenting a feature means launching the app, clicking to the right state,
+screenshotting, naming the file, and embedding it — **every time the UI changes.**
+The screenshots drift out of date the moment you ship, and nobody notices until
+they're embarrassingly wrong.
+
+`capture` makes them **reproducible**: describe *how to start your app* and *what
+to shoot* once, in a committed `.capture.yaml`, then regenerate the whole set on
+demand — locally or in CI. Same config + same app state → same screenshots.
+
+## Quickstart
+
+```bash
+pipx install git+https://github.com/varmabudharaju/capture   # or: uv tool install
+playwright install chromium                                  # one-time browser download
+
+capture init        # writes a starter .capture.yaml
+capture run         # boots your app, captures every shot, tears it all down
+```
+
+## One shot list, four kinds of shot
+
+```yaml
+output:
+  dir: docs/screenshots
+  readme: README.md            # optional: splice <img> snippets straight into the README
+
+app:                           # optional — omit for static sites or pure-CLI shots
+  command: "npm run dev"
+  ready: { url: http://localhost:5173, timeout: 30 }   # never shoot a half-booted app
+
+shots:
+  - { name: dashboard, kind: web, url: http://localhost:5173/dashboard, full_page: true, alt: "Dashboard" }
+  - { name: cli-help,  kind: cli, command: "mytool --help", alt: "Top-level help" }
+```
+
+| Kind | Captures | How |
+| --- | --- | --- |
+| **`web`** | a browser page — with optional click/fill/wait steps first | Playwright / Chromium |
+| **`cli` · `native`** *(macOS default)* | a **real screenshot of your Terminal.app window** — your font, your theme | AppleScript + `screencapture` |
+| **`cli` · `rendered`** *(any OS, CI-safe)* | the command's output drawn as a styled terminal card | PTY → ANSI→HTML → Chromium |
+| **`session`** | a **stateful, multi-command flow** in one persistent terminal — one shot per step | one Terminal window, captured after each step |
+
+A `session` is how you screenshot a flow whose later steps depend on earlier ones —
+the shell state (cwd, env, background processes) carries across. Background a
+long-running process with `&` and a small `wait_ms`, keep capturing, and the
+session tears it down on close.
+
+## Why capture, and not the others
+
+The pieces exist in isolation; `capture` is the one tool that does all of it under
+a single committed config.
+
+| | web pages | real terminal | CLI sessions | README auto-embed | reproducible / CI |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| **capture** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| shot-scraper | ✅ | ❌ | ❌ | ❌ | ✅ |
+| freeze / carbon | ❌ | synthetic | ❌ | ❌ | ✅ |
+| Percy / Chromatic | ✅ | ❌ | ❌ | ❌ | ✅ (cloud, paid) |
+| doing it by hand | 😖 | 😖 | 😖 | ❌ | ❌ |
+
+No cloud, no paid services, no special OS permissions for web/rendered shots.
+(Native Terminal capture needs macOS Screen-Recording permission; everything else
+needs nothing.)
+
+## How it works
+
+```
+.capture.yaml ─► load + validate ─► [ boot app, wait until ready ] ─► one engine
+                                                                        routes each
+                                                                        shot by kind:
+        web ───────► Playwright / Chromium
+        cli·native ► a real Terminal.app window
+        cli·render ► PTY → ANSI→HTML → Chromium
+        session ───► one persistent Terminal, a shot per step
+                                                                      ─► NN-name.png
+                                                                         + README splice
+```
+
+The clever part is what *isn't* here: **no AI runs at capture time.** Claude's only
+job is to *author* the `.capture.yaml` once by reading your repo; after that the
+engine is a plain, deterministic program — fast, free, and re-runnable in CI with
+no model in the loop. See the full design in [`docs/design.md`](docs/design.md).
+
+**Robust by design.** The readiness probe (HTTP / TCP port / log line) means you
+never screenshot a half-booted app, and the app is launched in its own process
+group and torn down — even on a crash or Ctrl-C — so a capture run never leaves an
+orphaned dev server behind.
+
+## Capture, captured by capture
+
+This repo dogfoods itself: the shots below are produced by running `capture run`
+on its own [`.capture.yaml`](.capture.yaml) and spliced in automatically.
 
 <!-- capture:start -->
 ### The capture CLI
@@ -25,95 +116,14 @@ See the full design in [`docs/design.md`](docs/design.md).
 
 <!-- capture:end -->
 
-## Why
+## Use with Claude
 
-Documenting features means launching the app, clicking to the right state, taking
-a screenshot, naming it, and embedding it — every time the UI changes. `capture`
-turns that into one reproducible step that works for **web apps** and **CLI tools**.
+`capture` ships an optional Claude integration in [`integrations/claude/`](integrations/claude/):
 
-## How it works
-
-A `.capture.yaml` in your repo declares the app and the shots:
-
-```yaml
-output:
-  dir: docs/screenshots
-  version: v1
-
-app:
-  command: "npm run dev"
-  ready:
-    url: http://localhost:5173
-    timeout: 30
-
-shots:
-  - name: dashboard
-    kind: web
-    url: http://localhost:5173/dashboard
-    full_page: true
-    alt: "Dashboard with live stats"
-
-  - name: search-help
-    kind: cli
-    command: "mytool search --help"
-    alt: "search subcommand help"
-```
-
-```bash
-capture run
-```
-
-`capture` boots the app, waits until it is actually ready, captures each shot,
-tears everything down cleanly, and writes numbered PNGs plus ready-to-paste
-`<img>` snippets under `docs/screenshots/`.
-
-**Web** shots are real Playwright/Chromium renders of the live page. **CLI** shots
-are, by default on macOS, *real screenshots of your actual Terminal.app window*
-(`style: native`) — your font, your theme, authentic. On other platforms (or with
-`style: rendered`) the command output is drawn as a styled terminal card instead,
-which needs no Screen-Recording permission and works in CI.
-
-Native Terminal capture needs Screen-Recording permission (System Settings →
-Privacy & Security); web and rendered capture need nothing. No cloud, no paid services.
-
-## Capture a whole flow (sessions)
-
-A `session` shot runs several commands in **one persistent Terminal window** — the
-shell state (cwd, env, background processes) carries across steps, and you get one
-screenshot per step. The window opens once, captures after each command, and closes
-at the end:
-
-```yaml
-shots:
-  - name: git-demo
-    kind: session
-    clear_between: true       # clean screen per step; the shell keeps running
-    steps:
-      - name: status
-        command: "git status"
-        alt: "before staging"
-      - name: staged
-        command: "git add -A && git status"
-        alt: "after staging"
-      - name: serve
-        command: "python -m http.server 8000 &"   # background long-running procs
-        wait_ms: 600                               # give it time to boot
-        alt: "dev server running"
-```
-
-This is how you screenshot a stateful flow — or capture a long-running process:
-background it with `&` and a small `wait_ms`, keep capturing, and the session
-tears it down on close. (macOS / `native`.)
-
-## Install
-
-```bash
-git clone https://github.com/varmabudharaju/capture
-cd capture
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-playwright install chromium
-```
+- a **`/capture` skill** that inspects your repo (routes, `--help`, README), writes
+  the `.capture.yaml` for you, and runs it;
+- an optional **auto-snapshot hook** that drops a raw snapshot when a dev server
+  starts (the honest "dumb snapshot"; the curated set always comes from `capture run`).
 
 ## Commands
 
@@ -122,7 +132,20 @@ playwright install chromium
 | `capture init` | Scaffold a starter `.capture.yaml` |
 | `capture validate` | Check the shot list is well-formed |
 | `capture run` | Capture every shot and write outputs |
-| `capture run --only dashboard` | Capture a single shot |
+| `capture run --only dashboard` | Capture a single shot by name |
+| `capture run --version v2` | Write into a versioned subfolder |
+
+## Develop
+
+```bash
+git clone https://github.com/varmabudharaju/capture && cd capture
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+playwright install chromium
+pytest                       # the suite is fully offline
+```
+
+The hero GIF is itself reproducible — [`demo.tape`](demo.tape) + `vhs demo.tape`.
 
 ## License
 
