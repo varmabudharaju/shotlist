@@ -10,6 +10,19 @@ regenerates them all with a single command.
 
 <img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/demo.gif" width="100%" alt="The old way: dragging Screen Shot 2026-... files into ever-more-cursed filenames, then shipping a UI tweak that makes them all stale. The capture way: one `capture run`."/>
 
+## Contents
+
+- [The problem](#the-problem)
+- [Quickstart](#quickstart)
+- [One shot list, four kinds of shot](#one-shot-list-four-kinds-of-shot)
+- [Use cases](#use-cases)
+- [Proof reports & pipelines](#proof-reports--pipelines)
+- [Why capture, and not the others](#why-capture-and-not-the-others)
+- [How it works](#how-it-works)
+- [Use with Claude](#use-with-claude)
+- [Commands](#commands)
+- [Develop](#develop)
+
 ## The problem
 
 Documenting a feature means launching the app, clicking to the right state,
