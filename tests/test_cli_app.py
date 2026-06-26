@@ -1,9 +1,11 @@
 """End-to-end tests for the Typer CLI via ``CliRunner``."""
 
+import io
 import threading
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from typer.testing import CliRunner, Result
 
 from capture import config as config_module
@@ -15,6 +17,13 @@ runner = CliRunner()
 def _fake_terminal(command: str, cwd: str, cols: int, rows: int) -> bytes:
     """Stand in for the real Terminal screenshot so the CLI test needs no GUI."""
     return b"\x89PNG\r\n\x1a\nX"
+
+
+def _png(color: tuple[int, int, int]) -> bytes:
+    """A real PNG of a solid color (the diff backend must be able to open it)."""
+    buf = io.BytesIO()
+    Image.new("RGB", (12, 12), color).save(buf, "PNG")
+    return buf.getvalue()
 
 
 def invoke_run(args: list[str]) -> Result:
@@ -181,3 +190,24 @@ def test_check_detects_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     box["data"] = b"\x89PNG\r\n\x1a\nB"
     drifted = invoke_run(["check", "--config", str(target)])
     assert drifted.exit_code != 0, drifted.output
+
+
+def test_check_diff_writes_images(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    box = {"data": _png((255, 0, 0))}
+    monkeypatch.setattr("capture.engine.capture_web", lambda page, shot: box["data"])
+    target = tmp_path / ".capture.yaml"
+    target.write_text(
+        "output:\n  dir: shots\n"
+        "shots:\n  - name: home\n    kind: web\n    url: http://localhost/\n"
+    )
+
+    assert invoke_run(["check", "--update", "--config", str(target)]).exit_code == 0
+
+    # The page changes to a different color → drift, with a visual diff written.
+    box["data"] = _png((0, 0, 255))
+    diff_dir = tmp_path / "capture-diffs"
+    result = invoke_run(["check", "--config", str(target), "--diff", str(diff_dir)])
+
+    assert result.exit_code != 0, result.output
+    assert (diff_dir / "home.diff.png").exists()
+    assert (diff_dir / "diff.html").exists()

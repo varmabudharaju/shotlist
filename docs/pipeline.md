@@ -50,12 +50,21 @@ changed screen turns the build red.
 - Exit is **non-zero on drift** (changed / added / removed), zero when clean.
 
 ```bash
-capture check            # verify against the committed baseline
-capture check --update   # re-shoot and accept the new screenshots as the baseline
+capture check                       # verify against the committed baseline
+capture check --update              # re-shoot and accept the new screenshots
+capture check --diff capture-diffs  # also render a visual diff of every change
 ```
 
 Snapshot ergonomics: `check` to verify, `check --update` to bless an intended
 change (like `jest -u`).
+
+### Visual diffs
+
+`--diff DIR` renders, for each changed shot, a 3-up image — **baseline · current ·
+highlighted difference** — plus a `diff.html` gallery you can open or upload as a
+CI artifact:
+
+![baseline, current, and the highlighted difference](diff-example.png)
 
 ## In a pipeline
 

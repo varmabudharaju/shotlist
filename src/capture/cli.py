@@ -10,17 +10,19 @@ traceback.
 
 import json
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 
 from capture import config as config_module
 from capture import engine
-from capture.check import compare_manifests
+from capture.check import CheckResult, compare_manifests
+from capture.diff import DIFF_GALLERY_NAME, diff_images, render_diff_gallery
 from capture.engine import _is_deterministic
 from capture.lifecycle import ReadinessError
-from capture.output import Writer
-from capture.report import MANIFEST_NAME, build_manifest
+from capture.output import CaptureResult, Writer, slugify
+from capture.report import MANIFEST_NAME, Manifest, build_manifest
 
 app = typer.Typer(
     add_completion=False,
@@ -141,11 +143,44 @@ _CHECK_SYMBOLS = {
 }
 
 
+def _write_diffs(
+    result: CheckResult,
+    baseline: Manifest,
+    results: list[CaptureResult],
+    baseline_dir: Path,
+    diff_dir: Path,
+) -> list[tuple[str, str]]:
+    """Render a 3-up diff PNG for each changed shot, plus a diff.html gallery."""
+    base_by_name = {shot["name"]: shot for shot in baseline["shots"]}
+    current_by_name = {captured.name: captured for captured in results}
+    diff_dir.mkdir(parents=True, exist_ok=True)
+    entries: list[tuple[str, str]] = []
+    for shot_diff in result.diffs:
+        if shot_diff.status != "changed":
+            continue
+        baseline_png = (baseline_dir / base_by_name[shot_diff.name]["file"]).read_bytes()
+        current_png = current_by_name[shot_diff.name].path.read_bytes()
+        filename = f"{slugify(shot_diff.name)}.diff.png"
+        (diff_dir / filename).write_bytes(diff_images(baseline_png, current_png).image)
+        entries.append((shot_diff.name, filename))
+    if entries:
+        generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (diff_dir / DIFF_GALLERY_NAME).write_text(
+            render_diff_gallery(entries, generated_at=generated_at)
+        )
+    return entries
+
+
 @app.command()
 def check(
     config: str = typer.Option(".capture.yaml", "--config", "-c"),  # noqa: B008
     update: bool = typer.Option(
         False, "--update", help="Accept the current screenshots as the new baseline."
+    ),
+    diff: str | None = typer.Option(
+        None,
+        "--diff",
+        help="Write a visual diff (NAME.diff.png + diff.html) for changed shots into DIR.",
     ),
 ) -> None:
     """Re-capture and fail if deterministic shots drifted from the committed baseline.
@@ -155,6 +190,8 @@ def check(
     are skipped. Exits non-zero on drift. ``--update`` re-shoots and writes the new
     baseline instead of checking.
     """
+    diff_dir = Path(diff) if diff is not None else None
+    diff_entries: list[tuple[str, str]] = []
     try:
         cfg = config_module.load(config)
         repo_root = Path(config).resolve().parent
@@ -164,7 +201,8 @@ def check(
             typer.echo("baseline updated")
             return
 
-        baseline_path = Writer(cfg.output, repo_root).target_dir() / MANIFEST_NAME
+        baseline_dir = Writer(cfg.output, repo_root).target_dir()
+        baseline_path = baseline_dir / MANIFEST_NAME
         if not baseline_path.exists():
             typer.echo(
                 f"no baseline manifest at {baseline_path}; "
@@ -192,21 +230,29 @@ def check(
                 )
                 results = engine.run(probe, repo_root, only=checkable, config_path=config)
                 current = build_manifest(results, generated_at="", config=config)
+                result = compare_manifests(baseline, current)
+                if diff_dir is not None:
+                    diff_entries = _write_diffs(result, baseline, results, baseline_dir, diff_dir)
         else:
             current = build_manifest([], generated_at="", config=config)
-
-        result = compare_manifests(baseline, current)
+            result = compare_manifests(baseline, current)
     except (config_module.ConfigError, ReadinessError) as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
 
-    for diff in result.diffs:
-        line = f"{_CHECK_SYMBOLS[diff.status]} {diff.name}  {diff.status}"
-        if diff.reason:
-            line += f" ({diff.reason})"
+    diff_files = dict(diff_entries)
+    for shot_diff in result.diffs:
+        line = f"{_CHECK_SYMBOLS[shot_diff.status]} {shot_diff.name}  {shot_diff.status}"
+        if shot_diff.reason:
+            line += f" ({shot_diff.reason})"
+        if diff_dir is not None and shot_diff.name in diff_files:
+            line += f"  → {diff_dir / diff_files[shot_diff.name]}"
         typer.echo(line)
 
     if result.drifted:
-        typer.echo("drift detected — run `capture check --update` to accept")
+        if diff_entries and diff_dir is not None:
+            typer.echo(f"drift detected — see {diff_dir / DIFF_GALLERY_NAME}")
+        else:
+            typer.echo("drift detected — run `capture check --update` to accept")
         raise typer.Exit(1)
     typer.echo("no drift")

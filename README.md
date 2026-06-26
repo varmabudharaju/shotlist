@@ -76,9 +76,10 @@ Every `capture run` also writes, next to the PNGs:
 
 Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Gate CI
 with **`capture check`** — it re-captures and fails when a screenshot drifts from
-the committed baseline (`capture check --update` to accept intended changes) — or
-drop in the bundled **GitHub Action**. Turn the report off with `--no-report` (or
-`output.report: false`). Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
+the committed baseline (`capture check --update` to accept intended changes; add
+`--diff DIR` to render baseline·current·diff images) — or drop in the bundled
+**GitHub Action**. Turn the report off with `--no-report` (or `output.report:
+false`). Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
 
 ## Why capture, and not the others
 
@@ -157,6 +158,7 @@ on its own [`.capture.yaml`](.capture.yaml) and spliced in automatically.
 | `capture run --version v2` | Write into a versioned subfolder |
 | `capture check` | Fail if a screenshot drifted from the committed baseline |
 | `capture check --update` | Re-shoot and accept the current screenshots as the baseline |
+| `capture check --diff DIR` | Also render baseline·current·diff images for changed shots |
 
 ## Develop
 

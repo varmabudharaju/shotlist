@@ -18,6 +18,7 @@ dependencies = [
     "pyyaml>=6.0",
     "rich>=13.7",
     "ansi2html>=1.9",
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +48,7 @@ exclude = [
     "docs/demo.gif",
     "docs/proof-report.png",
     "docs/check.png",
+    "docs/diff-example.png",
     "demo",
 ]
 
