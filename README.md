@@ -59,11 +59,19 @@ the shell state (cwd, env, background processes) carries across. Background a
 long-running process with `&` and a small `wait_ms`, keep capturing, and the
 session tears it down on close.
 
-## Recipes
+## Use cases
 
-Copy-paste `.capture.yaml` configs for the common jobs — test-evidence proofs, CI
-regeneration, long-running servers, web flows with interactions, versioned visual
-history — live in **[`docs/recipes.md`](docs/recipes.md)**.
+`capture` fits anywhere a screenshot would otherwise go stale:
+
+- **README & docs screenshots** — the core: regenerate the whole set on every UI change.
+- **Test-evidence / proof** — capture a feature flow step by step (a `session`) and share the generated `index.html` as proof it works.
+- **CI drift-checking** — `capture check` fails the build when a screenshot changes unexpectedly (with a visual `--diff`).
+- **Blog posts & tutorials** — polished web *and* CLI shots from one config.
+- **Onboarding & demo galleries** — versioned sets you keep across releases.
+- **Long-running processes** — background a dev server with `&` + `wait_ms` and shoot it live.
+
+Each one has a complete, copy-paste `.capture.yaml` in the recipes cookbook,
+**[`docs/recipes.md`](docs/recipes.md)**.
 
 ## Proof reports & pipelines
 
