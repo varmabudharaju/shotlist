@@ -4,7 +4,7 @@
 # This is *sourced*, not executed, by demo.tape — so the cd/exports below
 # persist into the recorded shell. It builds a temp dir with a "Desktop" full
 # of cursed screenshot filenames (for the before bit) and a tiny rendered-style
-# shot list (so the real `capture run` in the GIF needs no Terminal.app and
+# shot list (so the real `shotlist run` in the GIF needs no Terminal.app and
 # would even work in CI). Re-render the GIF anytime with:  vhs demo.tape
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLAY="$(mktemp -d)"
@@ -16,23 +16,23 @@ for t in "3.47.11 PM" "3.52.02 PM" "3.58.40 PM" "4.02.59 PM"; do
 done
 
 # A tiny rendered-style shot list: headless Chromium, no Terminal.app popups,
-# so `capture run` runs cleanly inside the recording.
-cat > "$PLAY/.capture.yaml" <<YAML
+# so `shotlist run` runs cleanly inside the recording.
+cat > "$PLAY/.shotlist.yaml" <<YAML
 output:
   dir: docs/screenshots
 shots:
   - name: cli-help
     kind: cli
-    command: "$REPO/.venv/bin/capture --help"
+    command: "$REPO/.venv/bin/shotlist --help"
     style: rendered
     cols: 84
-    alt: "capture --help"
+    alt: "shotlist --help"
   - name: run-help
     kind: cli
-    command: "$REPO/.venv/bin/capture run --help"
+    command: "$REPO/.venv/bin/shotlist run --help"
     style: rendered
     cols: 84
-    alt: "capture run --help"
+    alt: "shotlist run --help"
 YAML
 
 export PATH="$REPO/.venv/bin:$PATH"

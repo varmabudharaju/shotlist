@@ -12,12 +12,12 @@ inputs:
   config:
     description: "Path to the shot list."
     required: false
-    default: ".capture.yaml"
+    default: ".shotlist.yaml"
 
 runs:
   using: "composite"
   steps:
-    - name: Install capture
+    - name: Install shotlist
       shell: bash
       run: pip install shotlist
     - name: Install Chromium

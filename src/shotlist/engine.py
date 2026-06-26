@@ -1,7 +1,7 @@
-"""Orchestrate a capture run: boot the app, capture each shot, write outputs.
+"""Orchestrate a shotlist run: boot the app, capture each shot, write outputs.
 
 This module glues the pieces together. It optionally starts the app via
-:class:`~capture.lifecycle.AppProcess`, then walks the selected shots routing
+:class:`~shotlist.lifecycle.AppProcess`, then walks the selected shots routing
 each to the right backend:
 
 - web pages and *rendered* CLI shots go through one Chromium;
@@ -19,13 +19,13 @@ from pathlib import Path
 
 from playwright.sync_api import Browser, Page, sync_playwright
 
-from capture.backends.cli import capture_cli
-from capture.backends.native_terminal import capture_terminal, capture_terminal_session
-from capture.backends.web import capture_web
-from capture.config import CliShot, Config, SessionShot, WebShot
-from capture.lifecycle import AppProcess
-from capture.output import CaptureResult, Writer
-from capture.report import write_report
+from shotlist.backends.cli import capture_cli
+from shotlist.backends.native_terminal import capture_terminal, capture_terminal_session
+from shotlist.backends.web import capture_web
+from shotlist.config import CliShot, Config, SessionShot, WebShot
+from shotlist.lifecycle import AppProcess
+from shotlist.output import CaptureResult, Writer
+from shotlist.report import write_report
 
 Shot = WebShot | CliShot | SessionShot
 
@@ -143,7 +143,7 @@ def run(
     """Capture the configured shots and return their on-disk results.
 
     Boots ``config.app`` when present (waiting on ``ready`` if given), captures
-    each selected shot to ``NN-name.png`` via :class:`~capture.output.Writer`
+    each selected shot to ``NN-name.png`` via :class:`~shotlist.output.Writer`
     (a session expands to one image per step), optionally splices the images into
     the README, and—unless ``output.report`` is off—writes a ``manifest.json`` and
     an ``index.html`` gallery beside the PNGs. The browser (when used) and the app

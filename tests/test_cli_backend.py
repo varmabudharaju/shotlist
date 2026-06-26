@@ -3,9 +3,9 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
-from capture.backends.cli import capture_cli, run_command
-from capture.config import CliShot
-from capture.render import ansi_to_html, terminal_html
+from shotlist.backends.cli import capture_cli, run_command
+from shotlist.config import CliShot
+from shotlist.render import ansi_to_html, terminal_html
 from tests.conftest import PNG_MAGIC
 
 

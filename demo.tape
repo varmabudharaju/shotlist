@@ -30,10 +30,10 @@ Sleep 1.6s
 Type "clear" Enter
 Sleep 300ms
 
-# --- Scene 2: the capture way (a real run) ---
-Type "# the capture way:" Enter
+# --- Scene 2: the shotlist way (a real run) ---
+Type "# the shotlist way:" Enter
 Sleep 500ms
-Type "capture run" Enter
+Type "shotlist run" Enter
 Sleep 5s
 Type "# one shot list. one command. never stale again." Enter
 Sleep 2s

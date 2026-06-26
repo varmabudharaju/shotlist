@@ -67,7 +67,7 @@ def capture_terminal(
             "native terminal capture requires macOS; set 'style: rendered' on this platform"
         )
     with tempfile.TemporaryDirectory() as tmp:
-        script_path = Path(tmp) / "capture.applescript"
+        script_path = Path(tmp) / "shotlist.applescript"
         out_path = Path(tmp) / "shot.png"
         script_path.write_text(_APPLESCRIPT)
         try:

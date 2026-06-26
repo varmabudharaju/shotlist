@@ -8,8 +8,8 @@ import pytest
 from PIL import Image
 from typer.testing import CliRunner, Result
 
-from capture import config as config_module
-from capture.cli import app
+from shotlist import config as config_module
+from shotlist.cli import app
 
 runner = CliRunner()
 
@@ -32,7 +32,7 @@ def invoke_run(args: list[str]) -> Result:
     The session-scoped ``browser`` fixture keeps a ``sync_playwright`` loop alive
     for the whole suite; running the engine on the main thread would trip its
     nesting guard. A fresh thread has no running event loop, so the sync
-    Playwright API used by ``capture run`` works there.
+    Playwright API used by ``shotlist run`` works there.
     """
     result: list[Result] = []
 
@@ -46,7 +46,7 @@ def invoke_run(args: list[str]) -> Result:
 
 
 def test_init_creates_loadable_config(tmp_path: Path) -> None:
-    target = tmp_path / ".capture.yaml"
+    target = tmp_path / ".shotlist.yaml"
     result = runner.invoke(app, ["init", "--path", str(target)])
 
     assert result.exit_code == 0, result.output
@@ -57,7 +57,7 @@ def test_init_creates_loadable_config(tmp_path: Path) -> None:
 
 
 def test_init_refuses_existing_without_force(tmp_path: Path) -> None:
-    target = tmp_path / ".capture.yaml"
+    target = tmp_path / ".shotlist.yaml"
     target.write_text("shots: []\n")
 
     result = runner.invoke(app, ["init", "--path", str(target)])
@@ -67,7 +67,7 @@ def test_init_refuses_existing_without_force(tmp_path: Path) -> None:
 
 
 def test_init_force_overwrites(tmp_path: Path) -> None:
-    target = tmp_path / ".capture.yaml"
+    target = tmp_path / ".shotlist.yaml"
     target.write_text("shots: []\n")
 
     result = runner.invoke(app, ["init", "--path", str(target), "--force"])
@@ -77,7 +77,7 @@ def test_init_force_overwrites(tmp_path: Path) -> None:
 
 
 def test_validate_good_file(tmp_path: Path) -> None:
-    target = tmp_path / ".capture.yaml"
+    target = tmp_path / ".shotlist.yaml"
     runner.invoke(app, ["init", "--path", str(target)])
 
     result = runner.invoke(app, ["validate", "--config", str(target)])
@@ -86,7 +86,7 @@ def test_validate_good_file(tmp_path: Path) -> None:
 
 
 def test_validate_bad_file(tmp_path: Path) -> None:
-    target = tmp_path / ".capture.yaml"
+    target = tmp_path / ".shotlist.yaml"
     target.write_text("not: a valid shot list\n")
 
     result = runner.invoke(app, ["validate", "--config", str(target)])
@@ -94,8 +94,8 @@ def test_validate_bad_file(tmp_path: Path) -> None:
 
 
 def test_run_single_cli_shot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
-    target = tmp_path / ".capture.yaml"
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".shotlist.yaml"
     target.write_text(
         "output:\n"
         "  dir: shots\n"
@@ -117,8 +117,8 @@ def test_run_single_cli_shot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 def test_run_no_report_suppresses_artifacts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
-    target = tmp_path / ".capture.yaml"
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".shotlist.yaml"
     target.write_text(
         "output:\n"
         "  dir: shots\n"
@@ -149,8 +149,8 @@ _NATIVE_CONFIG = (
 def test_check_errors_without_baseline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
-    target = tmp_path / ".capture.yaml"
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".shotlist.yaml"
     target.write_text(_NATIVE_CONFIG)
 
     result = invoke_run(["check", "--config", str(target)])
@@ -161,8 +161,8 @@ def test_check_errors_without_baseline(
 def test_check_update_then_passes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
-    target = tmp_path / ".capture.yaml"
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".shotlist.yaml"
     target.write_text(_NATIVE_CONFIG)
 
     upd = invoke_run(["check", "--update", "--config", str(target)])
@@ -176,8 +176,8 @@ def test_check_update_then_passes(
 
 def test_check_detects_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     box = {"data": b"\x89PNG\r\n\x1a\nA"}
-    monkeypatch.setattr("capture.engine.capture_web", lambda page, shot: box["data"])
-    target = tmp_path / ".capture.yaml"
+    monkeypatch.setattr("shotlist.engine.capture_web", lambda page, shot: box["data"])
+    target = tmp_path / ".shotlist.yaml"
     target.write_text(
         "output:\n  dir: shots\n"
         "shots:\n  - name: home\n    kind: web\n    url: http://localhost/\n"
@@ -194,8 +194,8 @@ def test_check_detects_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
 def test_check_diff_writes_images(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     box = {"data": _png((255, 0, 0))}
-    monkeypatch.setattr("capture.engine.capture_web", lambda page, shot: box["data"])
-    target = tmp_path / ".capture.yaml"
+    monkeypatch.setattr("shotlist.engine.capture_web", lambda page, shot: box["data"])
+    target = tmp_path / ".shotlist.yaml"
     target.write_text(
         "output:\n  dir: shots\n"
         "shots:\n  - name: home\n    kind: web\n    url: http://localhost/\n"

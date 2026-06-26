@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from capture.config import (
+from shotlist.config import (
     AppSpec,
     CliShot,
     Config,
@@ -30,8 +30,8 @@ from capture.config import (
     Viewport,
     WebShot,
 )
-from capture.engine import _is_deterministic, run
-from capture.output import CaptureResult
+from shotlist.engine import _is_deterministic, run
+from shotlist.output import CaptureResult
 from tests.conftest import PNG_MAGIC
 
 INDEX_HTML = (
@@ -94,7 +94,7 @@ def connectable(port: int) -> bool:
 
 
 def test_cli_shot_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
@@ -111,7 +111,7 @@ def test_cli_shot_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_only_filter_selects_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
@@ -168,7 +168,7 @@ def test_web_shot_with_app_lifecycle(tmp_path: Path) -> None:
 
 
 def test_readme_insertion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots", readme="README.md"),
         app=None,
@@ -179,14 +179,14 @@ def test_readme_insertion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     readme = tmp_path / "README.md"
     assert readme.exists()
     text = readme.read_text()
-    assert "<!-- capture:start -->" in text
+    assert "<!-- shotlist:start -->" in text
     assert "<img" in text
 
 
 def test_session_expands_to_numbered_results(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal_session", _fake_session)
+    monkeypatch.setattr("shotlist.engine.capture_terminal_session", _fake_session)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
@@ -212,7 +212,7 @@ def test_session_expands_to_numbered_results(
 def test_run_writes_manifest_and_gallery_by_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
@@ -232,7 +232,7 @@ def test_run_writes_manifest_and_gallery_by_default(
 def test_run_report_can_be_disabled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots", report=False),
         app=None,
@@ -268,7 +268,7 @@ def test_is_deterministic_by_kind_and_style() -> None:
 def test_run_marks_native_cli_as_nondeterministic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("capture.engine.capture_terminal", _fake_terminal)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,

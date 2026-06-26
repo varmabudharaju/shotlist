@@ -18,8 +18,8 @@ import time
 
 from playwright.sync_api import Page
 
-from capture.config import CliShot
-from capture.render import ansi_to_html, terminal_html
+from shotlist.config import CliShot
+from shotlist.render import ansi_to_html, terminal_html
 
 
 def _set_winsize(fd: int, cols: int, rows: int = 50) -> None:

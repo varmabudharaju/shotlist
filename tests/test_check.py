@@ -1,5 +1,5 @@
-from capture.check import CheckResult, ShotDiff, compare_manifests
-from capture.report import Manifest, ShotEntry
+from shotlist.check import CheckResult, ShotDiff, compare_manifests
+from shotlist.report import Manifest, ShotEntry
 
 
 def _entry(

@@ -2,7 +2,7 @@
 
 from playwright.sync_api import Page
 
-from capture.config import Step, WebShot
+from shotlist.config import Step, WebShot
 
 
 def apply_step(page: Page, step: Step) -> None:

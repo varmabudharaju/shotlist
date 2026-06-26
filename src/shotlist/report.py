@@ -1,6 +1,6 @@
 """Emit a run manifest and a gallery from a set of captured shots.
 
-A capture run produces a list of :class:`~capture.output.CaptureResult`. This
+A shotlist run produces a list of :class:`~shotlist.output.CaptureResult`. This
 module turns that list into two artifacts written next to the PNGs:
 
 - ``manifest.json`` — a machine-readable record of the run (a pipeline artifact);
@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-from capture.output import CaptureResult
+from shotlist.output import CaptureResult
 
 SCHEMA_VERSION = "1"
 MANIFEST_NAME = "manifest.json"
@@ -121,7 +121,7 @@ def render_gallery(
     results: list[CaptureResult],
     *,
     generated_at: str,
-    title: str = "capture",
+    title: str = "shotlist",
 ) -> str:
     """Render a self-contained ``index.html`` gallery of the results."""
     count = len(results)

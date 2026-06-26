@@ -2,8 +2,8 @@
 
 This module owns the *output convention*: numbered ``NN-name.png`` files under
 ``dir/[version]/``, plus ready-to-paste ``<img>`` snippets and an idempotent
-README splice between ``<!-- capture:start -->`` / ``<!-- capture:end -->``
-markers, so re-running ``capture`` refreshes docs without piling up duplicates.
+README splice between ``<!-- shotlist:start -->`` / ``<!-- shotlist:end -->``
+markers, so re-running ``shotlist`` refreshes docs without piling up duplicates.
 """
 
 import html
@@ -11,10 +11,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from capture.config import OutputSpec
+from shotlist.config import OutputSpec
 
-_START_MARKER = "<!-- capture:start -->"
-_END_MARKER = "<!-- capture:end -->"
+_START_MARKER = "<!-- shotlist:start -->"
+_END_MARKER = "<!-- shotlist:end -->"
 
 _SLUG_SEP = re.compile(r"[\s_]+")
 _SLUG_DROP = re.compile(r"[^a-z0-9-]+")
@@ -86,7 +86,7 @@ class Writer:
         try:
             src = path.relative_to(self.repo_root).as_posix()
         except ValueError:
-            # Output dir lives outside the repo root (e.g. `capture check`'s temp
+            # Output dir lives outside the repo root (e.g. `shotlist check`'s temp
             # probe); a repo-relative src is meaningless, so use the bare filename.
             src = filename
         return CaptureResult(

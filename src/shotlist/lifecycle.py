@@ -4,7 +4,7 @@ The two failure modes this module exists to prevent:
 
 1. Screenshotting a half-booted app — solved by :meth:`AppProcess.wait_ready`,
    which polls an HTTP endpoint, TCP port, or log line until the app responds.
-2. Leaking the dev server after capture — solved by launching the app in its own
+2. Leaking the dev server after shotlist — solved by launching the app in its own
    process group and killing the whole group on exit (even on crash / Ctrl-C).
 """
 
@@ -20,7 +20,7 @@ import urllib.request
 from types import TracebackType
 from typing import Self
 
-from capture.config import ReadySpec
+from shotlist.config import ReadySpec
 
 
 class ReadinessError(RuntimeError):

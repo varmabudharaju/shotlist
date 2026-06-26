@@ -5,17 +5,17 @@ from pathlib import Path
 
 import pytest
 
-from capture.backends.native_terminal import (
+from shotlist.backends.native_terminal import (
     NativeCaptureError,
     capture_terminal,
     capture_terminal_session,
 )
 
-_SYS = "capture.backends.native_terminal.sys.platform"
-_RUN = "capture.backends.native_terminal.subprocess.run"
-_CREATE = "capture.backends.native_terminal._create_session"
-_STEP = "capture.backends.native_terminal._run_step"
-_CLOSE = "capture.backends.native_terminal._close_session"
+_SYS = "shotlist.backends.native_terminal.sys.platform"
+_RUN = "shotlist.backends.native_terminal.subprocess.run"
+_CREATE = "shotlist.backends.native_terminal._create_session"
+_STEP = "shotlist.backends.native_terminal._run_step"
+_CLOSE = "shotlist.backends.native_terminal._close_session"
 
 
 def test_requires_macos(monkeypatch: pytest.MonkeyPatch) -> None:

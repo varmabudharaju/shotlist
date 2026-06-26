@@ -1,8 +1,8 @@
 # Recipes
 
-Copy-paste `.capture.yaml` configs for common jobs. Each one is a complete shot
-list — drop it in your repo and run `capture run`. (Install with
-`pip install shotlist`; the command is `capture`.)
+Copy-paste `.shotlist.yaml` configs for common jobs. Each one is a complete shot
+list — drop it in your repo and run `shotlist run`. (Install with
+`pip install shotlist`; the command is `shotlist`.)
 
 - [1. Test-evidence / proof of a feature](#1-test-evidence--proof-of-a-feature)
 - [2. Regenerate docs screenshots in CI](#2-regenerate-docs-screenshots-in-ci)
@@ -58,7 +58,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install shotlist && playwright install --with-deps chromium
-      - run: capture run
+      - run: shotlist run
       - uses: actions/upload-artifact@v4
         with:
           name: screenshots
@@ -69,11 +69,11 @@ Upload `docs/screenshots` as a build artifact, or replace the last step with the
 bundled action to **fail the build on drift**:
 
 ```yaml
-      - uses: varmabudharaju/shotlist@v0.1.0   # runs `capture check` by default
+      - uses: varmabudharaju/shotlist@v0.1.0   # runs `shotlist check` by default
 ```
 
 See [Pipeline & proof reports](pipeline.md) for the manifest schema and
-`capture check`.
+`shotlist check`.
 
 ## 3. Capture a long-running server
 
@@ -121,9 +121,9 @@ Capture a single element instead of the page with `selector: "#chart"`.
 into its own subfolder, so old shots are never overwritten.
 
 ```bash
-capture run --version v1     # at release 1  → docs/screenshots/v1/…
+shotlist run --version v1     # at release 1  → docs/screenshots/v1/…
 # ...ship some UI changes...
-capture run --version v2     # at release 2  → docs/screenshots/v2/…
+shotlist run --version v2     # at release 2  → docs/screenshots/v2/…
 ```
 
 Commit both folders to diff how a screen changed release over release.

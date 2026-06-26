@@ -1,6 +1,6 @@
 """Pixel diffs for changed shots — show *what* moved, not just that it moved.
 
-Used by ``capture check --diff``: for each shot whose bytes drifted, this renders
+Used by ``shotlist check --diff``: for each shot whose bytes drifted, this renders
 a 3-up image (baseline | current | the current with changed pixels highlighted)
 plus a small ``diff.html`` gallery. Pure functions — the CLI owns the file IO.
 """
@@ -114,9 +114,9 @@ def render_diff_gallery(entries: list[tuple[str, str]], *, generated_at: str) ->
         "<!doctype html>\n"
         '<html lang="en">\n<head>\n<meta charset="utf-8"/>\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>\n'
-        "<title>capture — drift</title>\n"
+        "<title>shotlist — drift</title>\n"
         f"<style>\n{_DIFF_CSS}</style>\n</head>\n<body>\n"
-        f"<h1>capture — {count} changed shot{plural}</h1>\n"
+        f"<h1>shotlist — {count} changed shot{plural}</h1>\n"
         f'<div class="sub">generated {html.escape(generated_at)}</div>\n'
         f"{''.join(figures)}\n"
         "</body>\n</html>\n"

@@ -2,8 +2,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from capture.output import CaptureResult
-from capture.report import (
+from shotlist.output import CaptureResult
+from shotlist.report import (
     SCHEMA_VERSION,
     RunReport,
     build_manifest,
@@ -42,12 +42,12 @@ def test_build_manifest_describes_each_shot(tmp_path: Path) -> None:
     r2 = _result(tmp_path, 2, "help", "cli", "help output", data2)
 
     manifest = build_manifest(
-        [r1, r2], generated_at="2026-06-25T00:00:00Z", config=".capture.yaml"
+        [r1, r2], generated_at="2026-06-25T00:00:00Z", config=".shotlist.yaml"
     )
 
     assert manifest["schema_version"] == SCHEMA_VERSION
     assert manifest["generated_at"] == "2026-06-25T00:00:00Z"
-    assert manifest["config"] == ".capture.yaml"
+    assert manifest["config"] == ".shotlist.yaml"
     assert manifest["shot_count"] == 2
     assert manifest["shots"][0] == {
         "index": 1,

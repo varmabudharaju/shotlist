@@ -1,4 +1,4 @@
-# capture — design
+# shotlist — design
 
 **Date:** 2026-06-09
 **Status:** approved, implementing
@@ -10,7 +10,7 @@ of each feature. Today that means manually launching the app, clicking to the
 right state, taking a screenshot, naming it, and embedding it — every time the UI
 changes. It is slow, inconsistent, and goes stale.
 
-`capture` makes this a one-command, reproducible step: describe *how to start the
+`shotlist` makes this a one-command, reproducible step: describe *how to start the
 app* and *what to capture* once, in a committed shot list, and regenerate the
 whole screenshot set on demand.
 
@@ -31,7 +31,7 @@ whole screenshot set on demand.
 
 ## Key idea: the declarative shot list
 
-A repo commits a `.capture.yaml`. A deterministic engine reads it, boots the app,
+A repo commits a `.shotlist.yaml`. A deterministic engine reads it, boots the app,
 captures every shot, tears down, and writes outputs. No AI is needed at runtime —
 Claude's role is only to *generate* the shot list for a new repo by inspecting it.
 
@@ -71,7 +71,7 @@ shots:
 One rendering engine (Playwright/Chromium), two backends, glued by an engine.
 
 ```
-.capture.yaml ──► config.load() ──► Engine.run()
+.shotlist.yaml ──► config.load() ──► Engine.run()
                                       │
                   ┌───────────────────┼────────────────────┐
                   ▼                   ▼                    ▼
@@ -86,7 +86,7 @@ One rendering engine (Playwright/Chromium), two backends, glued by an engine.
                                     optional README auto-insert)
 ```
 
-### Modules (`src/capture/`)
+### Modules (`src/shotlist/`)
 
 - **config.py** — Pydantic models (`Config`, `AppSpec`, `ReadySpec`, `Shot`,
   `WebShot`, `CliShot`, `SessionShot`/`SessionStep`, `OutputSpec`) + `load(path)`
@@ -107,7 +107,7 @@ One rendering engine (Playwright/Chromium), two backends, glued by an engine.
 - **render.py** — terminal-window HTML template + ANSI→HTML helper.
 - **output.py** — `Writer`: filename `NN-name.png`, write under
   `dir/[version]/`, build `<img width="100%" alt="...">` snippets, optionally
-  splice them into the README between `<!-- capture:start -->`/`<!-- capture:end -->`.
+  splice them into the README between `<!-- shotlist:start -->`/`<!-- shotlist:end -->`.
 - **engine.py** — orchestrates: load config → (start app) → one Chromium →
   iterate shots routing by `kind` → write → teardown. Returns a result manifest.
 - **cli.py** — Typer app: `init`, `validate`, `run [--only NAME] [--version V]`.
@@ -135,11 +135,11 @@ Playwright Chromium is installed in CI and locally on first use.
 ## Claude integration (shipped, optional)
 
 `integrations/claude/`:
-- **`/capture` skill** — inspects a repo (routes, `--help`, README), writes a
-  `.capture.yaml`, runs `capture run`, offers README insertion.
+- **`/shotlist` skill** — inspects a repo (routes, `--help`, README), writes a
+  `.shotlist.yaml`, runs `shotlist run`, offers README insertion.
 - **auto-snapshot hook** — optional `PostToolUse` hook snippet that drops a raw
   full-screen snapshot when a dev server starts (honest "dumb snapshot"; the
-  curated set always comes from `capture run`).
+  curated set always comes from `shotlist run`).
 - install docs to `~/.claude`.
 
 ## Output convention (mirrors pgsemantic)

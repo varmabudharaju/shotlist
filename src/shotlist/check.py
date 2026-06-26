@@ -10,7 +10,7 @@ skipped rather than reported as a spurious change.
 from dataclasses import dataclass
 from typing import Literal
 
-from capture.report import Manifest
+from shotlist.report import Manifest
 
 Status = Literal["unchanged", "changed", "added", "removed", "skipped"]
 

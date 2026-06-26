@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from capture.config import OutputSpec
-from capture.output import CaptureResult, Writer, slugify
+from shotlist.config import OutputSpec
+from shotlist.output import CaptureResult, Writer, slugify
 
 
 @pytest.mark.parametrize(
@@ -56,7 +56,7 @@ def test_write_zero_pads_index(tmp_path: Path) -> None:
 
 
 def test_write_src_falls_back_when_outside_repo_root(tmp_path: Path) -> None:
-    # An absolute output dir outside the repo root (as `capture check` uses for its
+    # An absolute output dir outside the repo root (as `shotlist check` uses for its
     # temp probe) must not crash; src degrades to the bare filename.
     outside = tmp_path / "outside"
     writer = Writer(OutputSpec(dir=str(outside)), tmp_path / "repo")
@@ -128,8 +128,8 @@ def test_update_readme_creates_file_when_absent(tmp_path: Path) -> None:
     assert readme.exists()
     text = readme.read_text()
     assert "## Screenshots" in text
-    assert "<!-- capture:start -->" in text
-    assert "<!-- capture:end -->" in text
+    assert "<!-- shotlist:start -->" in text
+    assert "<!-- shotlist:end -->" in text
     assert "### dashboard" in text
 
 
@@ -151,9 +151,9 @@ def test_update_readme_replaces_between_markers(tmp_path: Path) -> None:
     readme = tmp_path / "README.md"
     readme.write_text(
         "# Project\n\n## Screenshots\n\n"
-        "<!-- capture:start -->\n"
+        "<!-- shotlist:start -->\n"
         "### old stale heading\n\nstale content\n"
-        "<!-- capture:end -->\n\nfooter\n"
+        "<!-- shotlist:end -->\n\nfooter\n"
     )
     changed = writer.update_readme([_result(tmp_path)], readme)
 
@@ -166,8 +166,8 @@ def test_update_readme_replaces_between_markers(tmp_path: Path) -> None:
     assert text.startswith("# Project\n")
     assert text.rstrip().endswith("footer")
     # Markers are not duplicated.
-    assert text.count("<!-- capture:start -->") == 1
-    assert text.count("<!-- capture:end -->") == 1
+    assert text.count("<!-- shotlist:start -->") == 1
+    assert text.count("<!-- shotlist:end -->") == 1
 
 
 def test_update_readme_is_idempotent(tmp_path: Path) -> None:

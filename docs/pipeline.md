@@ -1,6 +1,6 @@
 # Pipeline & proof reports
 
-Every `capture run` writes two extra files into the output directory, right next
+Every `shotlist run` writes two extra files into the output directory, right next
 to the PNGs:
 
 - **`index.html`** — a self-contained gallery (a *proof report*): open it in a
@@ -18,7 +18,7 @@ copy `docs/screenshots/` anywhere and the gallery still renders.
 {
   "schema_version": "1",
   "generated_at": "2026-06-25T23:27:13Z",
-  "config": ".capture.yaml",
+  "config": ".shotlist.yaml",
   "shot_count": 2,
   "shots": [
     { "index": 1, "name": "cli-help", "kind": "cli", "alt": "capture top-level help",
@@ -35,13 +35,13 @@ copy `docs/screenshots/` anywhere and the gallery still renders.
 | `shot_count` | Number of images produced. |
 | `shots[]` | Per image: `index`, `name`, `kind` (`web`/`cli`/`session`), `alt`, `file` (bare PNG filename), and `bytes`. |
 
-## Drift checking — `capture check`
+## Drift checking — `shotlist check`
 
-`capture check` re-captures and **fails if anything drifted** from the committed
+`shotlist check` re-captures and **fails if anything drifted** from the committed
 `manifest.json`, comparing each shot by its `sha256`. Run it on every PR and a
 changed screen turns the build red.
 
-![capture check reporting drift](check.png)
+![shotlist check reporting drift](check.png)
 
 - Only **deterministic** shots (`web`, `cli·rendered`) are compared; `native`
   Terminal screenshots can't reproduce byte-for-byte, so they're **skipped**.
@@ -50,9 +50,9 @@ changed screen turns the build red.
 - Exit is **non-zero on drift** (changed / added / removed), zero when clean.
 
 ```bash
-capture check                       # verify against the committed baseline
-capture check --update              # re-shoot and accept the new screenshots
-capture check --diff capture-diffs  # also render a visual diff of every change
+shotlist check                       # verify against the committed baseline
+shotlist check --update              # re-shoot and accept the new screenshots
+shotlist check --diff capture-diffs  # also render a visual diff of every change
 ```
 
 Snapshot ergonomics: `check` to verify, `check --update` to bless an intended
@@ -72,13 +72,13 @@ The manifest also makes a run scriptable — assert a count or attach it as a bu
 artifact:
 
 ```bash
-capture run
+shotlist run
 test "$(jq .shot_count docs/screenshots/manifest.json)" -ge 5   # expect ≥ 5 shots
 ```
 
 ## GitHub Action
 
-`capture` ships a composite action — drop it into a workflow to drift-check on
+`shotlist` ships a composite action — drop it into a workflow to drift-check on
 every push:
 
 ```yaml
@@ -97,7 +97,7 @@ jobs:
 ```
 
 Pass `with: { command: run }` to regenerate instead, or
-`with: { config: path/to/.capture.yaml }`. Bump the `@v0.1.0` tag when you upgrade.
+`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.1.0` tag when you upgrade.
 
 See also [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci).
 
@@ -106,7 +106,7 @@ See also [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci).
 The report is on by default. Disable it per run or per repo:
 
 ```bash
-capture run --no-report
+shotlist run --no-report
 ```
 
 ```yaml

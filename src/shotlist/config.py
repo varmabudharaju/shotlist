@@ -1,6 +1,6 @@
-"""Configuration model and loader for ``.capture.yaml`` shot lists.
+"""Configuration model and loader for ``.shotlist.yaml`` shot lists.
 
-The shot list is the heart of ``capture``: a committed, declarative description
+The shot list is the heart of ``shotlist``: a committed, declarative description
 of *how to start the app* and *what to capture*. Everything downstream consumes
 the validated :class:`Config` produced by :func:`load`.
 """

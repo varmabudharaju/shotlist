@@ -1,19 +1,19 @@
 ---
-name: capture
-description: Use when the user wants screenshots of their app/CLI — for docs/README, posts, or as visual proof/test-evidence that features work ("test this and screenshot it as proof"). Inspects the product, writes a .capture.yaml shot list (web pages, CLI shots, persistent sessions for stateful flows), runs `capture run`, and collects or embeds the images.
+name: shotlist
+description: Use when the user wants screenshots of their app/CLI — for docs/README, posts, or as visual proof/test-evidence that features work ("test this and screenshot it as proof"). Inspects the product, writes a .shotlist.yaml shot list (web pages, CLI shots, persistent sessions for stateful flows), runs `shotlist run`, and collects or embeds the images.
 ---
 
-# capture
+# shotlist
 
-`capture` regenerates a polished, reproducible set of screenshots from a committed
-shot list (`.capture.yaml`). Web pages are real Playwright/Chromium renders. CLI
+`shotlist` regenerates a polished, reproducible set of screenshots from a committed
+shot list (`.shotlist.yaml`). Web pages are real Playwright/Chromium renders. CLI
 shots, by default on macOS, are **real screenshots of the actual Terminal.app
 window** (`style: native`, needs Screen-Recording permission); set `style: rendered`
 (the default off macOS) to draw the output as a styled terminal card via Chromium
 instead — no permission needed, works in CI.
 
-Your job in this skill is to inspect the product, author a good `.capture.yaml`
-covering each feature/flow, run `capture`, and then either embed the images in the
+Your job in this skill is to inspect the product, author a good `.shotlist.yaml`
+covering each feature/flow, run `shotlist`, and then either embed the images in the
 README or collect them as **proof / test-evidence** — e.g. a `docs/test-evidence.md`
 with one captioned shot per feature showing it actually works. For multi-step or
 stateful flows (and long-running processes), use a `session` shot so several
@@ -22,14 +22,14 @@ only "intelligence" needed is generating the shot list, which is what you do her
 
 ## Prerequisites
 
-`capture` must be installed and Chromium must be present:
+`shotlist` must be installed and Chromium must be present:
 
 ```bash
-capture --help            # confirm the CLI is installed
+shotlist --help            # confirm the CLI is installed
 playwright install chromium
 ```
 
-If `capture` is not found, point the user at the install instructions in the
+If `shotlist` is not found, point the user at the install instructions in the
 project README and stop.
 
 ## Procedure
@@ -63,12 +63,12 @@ Use the entry name as the command base (e.g. a `[project.scripts]` entry
 screenshot and the exact subcommands/flags to show. Aim for **one shot per
 feature** — the things a reader most needs to see.
 
-### Step 2 — Generate `.capture.yaml`
+### Step 2 — Generate `.shotlist.yaml`
 
-Write a `.capture.yaml` at the repo root, one shot per feature, using the schema
+Write a `.shotlist.yaml` at the repo root, one shot per feature, using the schema
 below. Guidance:
 
-- For **web apps**, include the `app` block so `capture` boots the server before
+- For **web apps**, include the `app` block so `shotlist` boots the server before
   capturing and tears it down after. Set `app.ready.url` (or `port`) to the real
   listen address and give it a generous `timeout`.
 - For **static sites** (no server) or **pure CLI tools**, omit the `app` block.
@@ -80,7 +80,7 @@ below. Guidance:
   `steps` to drive the page before the screenshot.
 - Give each shot a short, kebab-case `name`; names must be unique.
 
-#### Exact `.capture.yaml` schema
+#### Exact `.shotlist.yaml` schema
 
 ```yaml
 output:
@@ -191,32 +191,32 @@ shots:
 Always validate before running so config mistakes surface fast:
 
 ```bash
-capture validate
-capture run
+shotlist validate
+shotlist run
 ```
 
 Useful flags:
-- `capture run --only <name>` — capture a single shot while iterating.
-- `capture run --version <v>` — write into a specific version subfolder.
+- `shotlist run --only <name>` — capture a single shot while iterating.
+- `shotlist run --version <v>` — write into a specific version subfolder.
 
-If `capture run` reports a readiness timeout, the `app.ready` target or
+If `shotlist run` reports a readiness timeout, the `app.ready` target or
 `timeout` is wrong — fix the URL/port or raise the timeout and re-run. If a web
 shot's `steps`/`selector` fail, adjust the selectors to match the live DOM.
 
 ### Step 4 — Offer to embed the images in the README
 
-`capture` can splice the generated `<img>` snippets into the README itself. To
+`shotlist` can splice the generated `<img>` snippets into the README itself. To
 enable it:
 
-1. Set `output.readme: README.md` in `.capture.yaml` (the examples above do).
-2. Add the marker pair where you want the images, then re-run `capture run`:
+1. Set `output.readme: README.md` in `.shotlist.yaml` (the examples above do).
+2. Add the marker pair where you want the images, then re-run `shotlist run`:
 
    ```markdown
-   <!-- capture:start -->
-   <!-- capture:end -->
+   <!-- shotlist:start -->
+   <!-- shotlist:end -->
    ```
 
-   `capture` replaces everything between the markers with the current image set
+   `shotlist` replaces everything between the markers with the current image set
    (idempotent — safe to re-run). The snippets look like:
 
    ```html
@@ -228,10 +228,10 @@ can paste the snippets from the output manifest manually.
 
 ## Notes
 
-- `capture run` does **not** require macOS Screen-Recording permission — it
+- `shotlist run` does **not** require macOS Screen-Recording permission — it
   renders via Chromium, not the OS screenshotter.
 - Re-running with the same config and app state produces the same screenshots, so
   this is safe to put in CI.
 - There is an optional, separate auto-snapshot hook for raw full-screen grabs
   (see `integrations/claude/hooks/`). That is a "dumb" snapshot for quick
-  evidence; the curated README set always comes from `capture run`.
+  evidence; the curated README set always comes from `shotlist run`.

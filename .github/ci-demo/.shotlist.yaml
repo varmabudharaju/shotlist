@@ -6,7 +6,7 @@ output:
 shots:
   - name: hello
     kind: cli
-    command: "echo hello from the capture action"
+    command: "echo hello from the shotlist action"
     style: rendered
     cols: 44
     alt: "a rendered CLI shot proving the action runs in CI"

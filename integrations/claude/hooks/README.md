@@ -5,12 +5,12 @@ This is an **optional** convenience hook. Be honest about what it does:
 - It takes a **raw, full-screen snapshot** via the macOS `screencapture` tool
   when a dev server starts. Whatever is on your display gets grabbed — it is not
   cropped, not navigated to a specific state, and not curated.
-- It is **not** a substitute for `capture run`. The polished, reproducible
-  README/blog/test-evidence screenshot set always comes from `capture run`,
+- It is **not** a substitute for `shotlist run`. The polished, reproducible
+  README/blog/test-evidence screenshot set always comes from `shotlist run`,
   which renders through Chromium and produces numbered, named, alt-tagged PNGs.
 
 Use this hook only if you want a quick "what did the server look like the moment
-it booted" artifact. Most users will skip it and rely on `capture run`.
+it booted" artifact. Most users will skip it and rely on `shotlist run`.
 
 ## What's here
 
@@ -25,7 +25,7 @@ invokes the hook (your terminal / the Claude Code host app). Grant it under
 **System Settings → Privacy & Security → Screen Recording**, then restart that
 app. Without it, `screencapture` produces a blank or desktop-only image.
 
-Note: `capture run` itself does **NOT** need Screen Recording permission — it
+Note: `shotlist run` itself does **NOT** need Screen Recording permission — it
 renders pages via Chromium, not the OS screenshotter. This permission is only
 relevant to this optional raw-snapshot hook.
 
@@ -51,7 +51,7 @@ the server has a moment to paint its first screen). Adjust the path to
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -Eq 'npm run dev|vite|next dev|uvicorn|flask run'; then (sleep 5; sh /path/to/capture/integrations/claude/hooks/auto-snapshot.sh) >/dev/null 2>&1 & fi"
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -Eq 'npm run dev|vite|next dev|uvicorn|flask run'; then (sleep 5; sh /path/to/shotlist/integrations/claude/hooks/auto-snapshot.sh) >/dev/null 2>&1 & fi"
           }
         ]
       }

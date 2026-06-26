@@ -1,11 +1,11 @@
 # Contributing to capture
 
-Thanks for your interest in improving `capture`. This guide covers local setup
+Thanks for your interest in improving `shotlist`. This guide covers local setup
 and the checks every change must pass.
 
 ## Dev setup
 
-`capture` targets Python 3.11+. From the repository root:
+`shotlist` targets Python 3.11+. From the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -44,7 +44,7 @@ should mean a green CI run.
 
 ## Development style
 
-`capture` is built test-first (TDD): tests live in `tests/` alongside the module
+`shotlist` is built test-first (TDD): tests live in `tests/` alongside the module
 they exercise — `test_config.py` for `config.py`, `test_lifecycle.py` for
 `lifecycle.py`, `test_web.py` / `test_cli_backend.py` for the backends, and so
 on. When adding a feature or fixing a bug:

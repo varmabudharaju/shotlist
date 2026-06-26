@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shotlist"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reproducible screenshot capture for docs — drive a web app or CLI from a declarative shot list and capture polished feature screenshots."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,7 +30,7 @@ dev = [
 ]
 
 [project.scripts]
-capture = "capture.cli:app"
+shotlist = "shotlist.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/varmabudharaju/shotlist"
@@ -38,7 +38,7 @@ Repository = "https://github.com/varmabudharaju/shotlist"
 Issues = "https://github.com/varmabudharaju/shotlist/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/capture"]
+packages = ["src/shotlist"]
 
 [tool.hatch.build.targets.sdist]
 # The README links images by absolute URL, so the package doesn't need to ship

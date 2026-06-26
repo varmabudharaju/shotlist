@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from capture.config import CliShot, Config, ConfigError, SessionShot, WebShot, load
+from shotlist.config import CliShot, Config, ConfigError, SessionShot, WebShot, load
 
 
 def write(tmp_path: Path, text: str) -> Path:
-    p = tmp_path / ".capture.yaml"
+    p = tmp_path / ".shotlist.yaml"
     p.write_text(text)
     return p
 

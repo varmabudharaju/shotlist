@@ -1,4 +1,4 @@
-"""Typer command-line interface for ``capture``.
+"""Typer command-line interface for ``shotlist``.
 
 Four commands cover the whole workflow: ``init`` writes a starter shot list,
 ``validate`` checks a shot list loads cleanly, ``run`` performs the capture, and
@@ -15,14 +15,14 @@ from pathlib import Path
 
 import typer
 
-from capture import config as config_module
-from capture import engine
-from capture.check import CheckResult, compare_manifests
-from capture.diff import DIFF_GALLERY_NAME, diff_images, render_diff_gallery
-from capture.engine import _is_deterministic
-from capture.lifecycle import ReadinessError
-from capture.output import CaptureResult, Writer, slugify
-from capture.report import MANIFEST_NAME, Manifest, build_manifest
+from shotlist import config as config_module
+from shotlist import engine
+from shotlist.check import CheckResult, compare_manifests
+from shotlist.diff import DIFF_GALLERY_NAME, diff_images, render_diff_gallery
+from shotlist.engine import _is_deterministic
+from shotlist.lifecycle import ReadinessError
+from shotlist.output import CaptureResult, Writer, slugify
+from shotlist.report import MANIFEST_NAME, Manifest, build_manifest
 
 app = typer.Typer(
     add_completion=False,
@@ -30,8 +30,8 @@ app = typer.Typer(
 )
 
 _STARTER_YAML = """\
-# .capture.yaml — declarative shot list for `capture`.
-# Describe how to start your app and what to capture, then run `capture run`.
+# .shotlist.yaml — declarative shot list for `shotlist`.
+# Describe how to start your app and what to capture, then run `shotlist run`.
 
 output:
   dir: docs/screenshots   # where PNGs land
@@ -80,10 +80,10 @@ shots:
 
 @app.command()
 def init(
-    path: str = ".capture.yaml",
+    path: str = ".shotlist.yaml",
     force: bool = False,
 ) -> None:
-    """Write a starter .capture.yaml shot list."""
+    """Write a starter .shotlist.yaml shot list."""
     target = Path(path)
     if target.exists() and not force:
         typer.echo(f"refusing to overwrite existing {target} (use --force)")
@@ -94,7 +94,7 @@ def init(
 
 @app.command()
 def validate(
-    config: str = typer.Option(".capture.yaml", "--config", "-c"),  # noqa: B008
+    config: str = typer.Option(".shotlist.yaml", "--config", "-c"),  # noqa: B008
 ) -> None:
     """Check that a shot list loads and is valid."""
     try:
@@ -107,7 +107,7 @@ def validate(
 
 @app.command()
 def run(
-    config: str = typer.Option(".capture.yaml", "--config", "-c"),  # noqa: B008
+    config: str = typer.Option(".shotlist.yaml", "--config", "-c"),  # noqa: B008
     only: list[str] = typer.Option(default_factory=list, show_default=False),  # noqa: B008
     version: str | None = typer.Option(None),
     report: bool | None = typer.Option(
@@ -173,7 +173,7 @@ def _write_diffs(
 
 @app.command()
 def check(
-    config: str = typer.Option(".capture.yaml", "--config", "-c"),  # noqa: B008
+    config: str = typer.Option(".shotlist.yaml", "--config", "-c"),  # noqa: B008
     update: bool = typer.Option(
         False, "--update", help="Accept the current screenshots as the new baseline."
     ),
@@ -206,7 +206,7 @@ def check(
         if not baseline_path.exists():
             typer.echo(
                 f"no baseline manifest at {baseline_path}; "
-                "run `capture run` (or `capture check --update`) first"
+                "run `shotlist run` (or `shotlist check --update`) first"
             )
             raise typer.Exit(1)
         baseline = json.loads(baseline_path.read_text())
@@ -253,6 +253,6 @@ def check(
         if diff_entries and diff_dir is not None:
             typer.echo(f"drift detected — see {diff_dir / DIFF_GALLERY_NAME}")
         else:
-            typer.echo("drift detected — run `capture check --update` to accept")
+            typer.echo("drift detected — run `shotlist check --update` to accept")
         raise typer.Exit(1)
     typer.echo("no drift")

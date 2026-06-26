@@ -2,7 +2,7 @@ import io
 
 from PIL import Image
 
-from capture.diff import DiffResult, diff_images, render_diff_gallery
+from shotlist.diff import DiffResult, diff_images, render_diff_gallery
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 

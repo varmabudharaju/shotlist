@@ -3,8 +3,8 @@ import sys
 
 import pytest
 
-from capture.config import ReadySpec
-from capture.lifecycle import AppProcess, ReadinessError
+from shotlist.config import ReadySpec
+from shotlist.lifecycle import AppProcess, ReadinessError
 
 
 def free_port() -> int:

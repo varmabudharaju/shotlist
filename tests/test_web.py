@@ -2,8 +2,8 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
-from capture.backends.web import capture_web
-from capture.config import Step, Viewport, WebShot
+from shotlist.backends.web import capture_web
+from shotlist.config import Step, Viewport, WebShot
 from tests.conftest import PNG_MAGIC
 
 PAGE_HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
