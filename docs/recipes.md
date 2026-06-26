@@ -69,7 +69,7 @@ Upload `docs/screenshots` as a build artifact, or replace the last step with the
 bundled action to **fail the build on drift**:
 
 ```yaml
-      - uses: varmabudharaju/shotlist@v0.1.0   # runs `shotlist check` by default
+      - uses: varmabudharaju/shotlist@v0.2.0   # runs `shotlist check` by default
 ```
 
 See [Pipeline & proof reports](pipeline.md) for the manifest schema and

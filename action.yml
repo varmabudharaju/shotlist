@@ -1,5 +1,5 @@
-name: "capture screenshots"
-description: "Regenerate or drift-check your documentation screenshots with capture."
+name: "shotlist screenshots"
+description: "Regenerate or drift-check your documentation screenshots with shotlist."
 branding:
   icon: "camera"
   color: "purple"
@@ -23,6 +23,6 @@ runs:
     - name: Install Chromium
       shell: bash
       run: python -m playwright install --with-deps chromium
-    - name: capture ${{ inputs.command }}
+    - name: shotlist ${{ inputs.command }}
       shell: bash
-      run: capture ${{ inputs.command }} --config "${{ inputs.config }}"
+      run: shotlist ${{ inputs.command }} --config "${{ inputs.config }}"
