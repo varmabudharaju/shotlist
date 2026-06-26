@@ -1,7 +1,7 @@
 # capture
 
-[![CI](https://github.com/varmabudharaju/capture/actions/workflows/ci.yml/badge.svg)](https://github.com/varmabudharaju/capture/actions/workflows/ci.yml)
-[![verify-action](https://github.com/varmabudharaju/capture/actions/workflows/verify-action.yml/badge.svg)](https://github.com/varmabudharaju/capture/actions/workflows/verify-action.yml)
+[![CI](https://github.com/varmabudharaju/shotlist/actions/workflows/ci.yml/badge.svg)](https://github.com/varmabudharaju/shotlist/actions/workflows/ci.yml)
+[![verify-action](https://github.com/varmabudharaju/shotlist/actions/workflows/verify-action.yml/badge.svg)](https://github.com/varmabudharaju/shotlist/actions/workflows/verify-action.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -9,7 +9,7 @@
 web pages, your *real* terminal windows, and stateful CLI sessions — and
 regenerates them all with a single command.
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/demo.gif" width="100%" alt="The old way: dragging Screen Shot 2026-... files into ever-more-cursed filenames, then shipping a UI tweak that makes them all stale. The capture way: one `capture run`."/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/demo.gif" width="100%" alt="The old way: dragging Screen Shot 2026-... files into ever-more-cursed filenames, then shipping a UI tweak that makes them all stale. The capture way: one `capture run`."/>
 
 ## Contents
 
@@ -94,7 +94,7 @@ Every `capture run` also writes, next to the PNGs:
 - **`index.html`** — a self-contained gallery you can open and share as a **proof report**;
 - **`manifest.json`** — a machine-readable record of the run (a pipeline artifact).
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/proof-report.png" width="100%" alt="The generated index.html gallery: a header with the shot count and timestamp, then a card per shot showing the screenshot, its name, a kind badge, and its alt text."/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/proof-report.png" width="100%" alt="The generated index.html gallery: a header with the shot count and timestamp, then a card per shot showing the screenshot, its name, a kind badge, and its alt text."/>
 
 Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Gate CI
 with **`capture check`** — it re-captures and fails when a screenshot drifts from
@@ -152,11 +152,11 @@ on its own [`.capture.yaml`](.capture.yaml) and spliced in automatically.
 <!-- capture:start -->
 ### The capture CLI
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/screenshots/01-the-capture-cli.png" width="100%" alt="capture --help showing the init, validate, and run commands"/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/screenshots/01-the-capture-cli.png" width="100%" alt="capture --help showing the init, validate, and run commands"/>
 
 ### Run options
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/capture/main/docs/screenshots/02-run-options.png" width="100%" alt="capture run options: --config, --only, and --version"/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/screenshots/02-run-options.png" width="100%" alt="capture run options: --config, --only, and --version"/>
 
 <!-- capture:end -->
 
@@ -185,7 +185,7 @@ on its own [`.capture.yaml`](.capture.yaml) and spliced in automatically.
 ## Develop
 
 ```bash
-git clone https://github.com/varmabudharaju/capture && cd capture
+git clone https://github.com/varmabudharaju/shotlist && cd shotlist
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 playwright install chromium

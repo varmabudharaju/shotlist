@@ -33,9 +33,9 @@ dev = [
 capture = "capture.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/varmabudharaju/capture"
-Repository = "https://github.com/varmabudharaju/capture"
-Issues = "https://github.com/varmabudharaju/capture/issues"
+Homepage = "https://github.com/varmabudharaju/shotlist"
+Repository = "https://github.com/varmabudharaju/shotlist"
+Issues = "https://github.com/varmabudharaju/shotlist/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/capture"]

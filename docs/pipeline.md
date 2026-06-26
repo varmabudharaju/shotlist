@@ -93,7 +93,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: varmabudharaju/capture@v0.1.0      # `command` defaults to check
+      - uses: varmabudharaju/shotlist@v0.1.0      # `command` defaults to check
 ```
 
 Pass `with: { command: run }` to regenerate instead, or
