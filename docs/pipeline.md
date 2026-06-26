@@ -93,11 +93,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: varmabudharaju/capture@main      # `command` defaults to check
+      - uses: varmabudharaju/capture@v0.1.0      # `command` defaults to check
 ```
 
 Pass `with: { command: run }` to regenerate instead, or
-`with: { config: path/to/.capture.yaml }`. Pin to a release tag once you cut one.
+`with: { config: path/to/.capture.yaml }`. Bump the `@v0.1.0` tag when you upgrade.
 
 See also [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci).
 
