@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "capture-shots"
+name = "shotlist"
 version = "0.1.0"
 description = "Reproducible screenshot capture for docs — drive a web app or CLI from a declarative shot list and capture polished feature screenshots."
 readme = "README.md"

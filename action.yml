@@ -19,7 +19,7 @@ runs:
   steps:
     - name: Install capture
       shell: bash
-      run: pip install capture-shots
+      run: pip install shotlist
     - name: Install Chromium
       shell: bash
       run: python -m playwright install --with-deps chromium

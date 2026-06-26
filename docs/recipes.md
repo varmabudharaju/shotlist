@@ -2,7 +2,7 @@
 
 Copy-paste `.capture.yaml` configs for common jobs. Each one is a complete shot
 list — drop it in your repo and run `capture run`. (Install with
-`pip install capture-shots`; the command is `capture`.)
+`pip install shotlist`; the command is `capture`.)
 
 - [1. Test-evidence / proof of a feature](#1-test-evidence--proof-of-a-feature)
 - [2. Regenerate docs screenshots in CI](#2-regenerate-docs-screenshots-in-ci)
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install capture-shots && playwright install --with-deps chromium
+      - run: pip install shotlist && playwright install --with-deps chromium
       - run: capture run
       - uses: actions/upload-artifact@v4
         with:

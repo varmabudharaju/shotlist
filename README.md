@@ -24,7 +24,7 @@ demand — locally or in CI. Same config + same app state → same screenshots.
 ## Quickstart
 
 ```bash
-pip install capture-shots        # the `capture` command (the name `capture` was taken on PyPI)
+pip install shotlist             # installs the `capture` command
 playwright install chromium      # one-time browser download
 
 capture init        # writes a starter .capture.yaml
