@@ -191,6 +191,12 @@ playwright install chromium
 pytest                       # the suite is fully offline
 ```
 
+CI runs ruff, mypy, and pytest on Python 3.11 and 3.12. A separate
+**`verify-action`** workflow dogfoods the bundled GitHub Action on every PR —
+running `capture run` then `capture check` on a Linux runner — so a regression in
+the action is caught before it ships. Releases publish to PyPI automatically via
+Trusted Publishing.
+
 The hero GIF is itself reproducible — [`demo.tape`](demo.tape) + `vhs demo.tape`.
 
 ## License
