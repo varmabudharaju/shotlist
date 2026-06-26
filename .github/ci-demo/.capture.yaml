@@ -1,0 +1,12 @@
+# A tiny, deterministic shot list used only to verify the bundled GitHub Action
+# in CI. Rendered CLI shots work headless on Linux (no Terminal.app, no display),
+# so the action can both `run` and `check` them on an ubuntu runner.
+output:
+  dir: shots
+shots:
+  - name: hello
+    kind: cli
+    command: "echo hello from the capture action"
+    style: rendered
+    cols: 44
+    alt: "a rendered CLI shot proving the action runs in CI"

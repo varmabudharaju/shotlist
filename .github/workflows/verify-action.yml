@@ -1,0 +1,36 @@
+name: verify-action
+
+# Exercises the bundled composite action (pinned to the released tag) on every PR:
+# it generates screenshots with `capture run`, then drift-checks them with
+# `capture check`. Both run on the same Linux runner, so the check is deterministic.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate screenshots (capture run)
+        uses: varmabudharaju/capture@v0.1.0
+        with:
+          command: run
+          config: .github/ci-demo/.capture.yaml
+
+      - name: Drift check (capture check)
+        uses: varmabudharaju/capture@v0.1.0
+        with:
+          command: check
+          config: .github/ci-demo/.capture.yaml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-demo-screenshots
+          path: .github/ci-demo/shots
