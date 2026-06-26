@@ -10,7 +10,7 @@ shots:
     command: ".venv/bin/shotlist --help"
     cols: 90
     rows: 16
-    style: native        # a real screenshot of Terminal.app (macOS)
+    style: rendered      # a portable, headless-friendly terminal card
     alt: "shotlist --help showing the init, validate, and run commands"
 
   - name: Run options
@@ -18,5 +18,5 @@ shots:
     command: ".venv/bin/shotlist run --help"
     cols: 90
     rows: 20
-    style: native        # a real screenshot of Terminal.app (macOS)
+    style: rendered      # a portable, headless-friendly terminal card
     alt: "shotlist run options: --config, --only, and --version"

@@ -152,7 +152,7 @@ on its own [`.shotlist.yaml`](.shotlist.yaml) and spliced in automatically.
 <!-- shotlist:start -->
 ### The shotlist CLI
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/screenshots/01-the-capture-cli.png" width="100%" alt="shotlist --help showing the init, validate, and run commands"/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/screenshots/01-the-shotlist-cli.png" width="100%" alt="shotlist --help showing the init, validate, and run commands"/>
 
 ### Run options
 
