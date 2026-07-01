@@ -100,8 +100,11 @@ Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Gate 
 with **`shotlist check`** — it re-captures and fails when a screenshot drifts from
 the committed baseline (`shotlist check --update` to accept intended changes; add
 `--diff DIR` to render baseline·current·diff images) — or drop in the bundled
-**GitHub Action**. Turn the report off with `--no-report` (or `output.report:
-false`). Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
+**GitHub Action**. Set `output.title` to relabel the gallery heading, and
+`output.evidence` to also splice a captioned Markdown test-evidence doc — its own
+file, distinct from `output.dir` (where the PNGs land). Turn the report off with
+`--no-report` (or `output.report: false`). Details in
+**[`docs/pipeline.md`](docs/pipeline.md)**.
 
 ## Why shotlist, and not the others
 
@@ -144,6 +147,12 @@ never screenshot a half-booted app, and the app is launched in its own process
 group and torn down — even on a crash or Ctrl-C — so a shotlist run never leaves an
 orphaned dev server behind.
 
+**Deterministic by default.** Web shots can `mask` flaky regions (`mask:
+[selector, ...]`) and always capture with CSS animations disabled; CLI shots can
+`scrub` non-deterministic text (durations, timestamps, PIDs) with a regex before
+rendering; and rendered CLI cards embed JetBrains Mono. Baselines now match
+byte-for-byte across macOS and Linux CI, not just on the machine that made them.
+
 ## shotlist, captured by shotlist
 
 This repo dogfoods itself: the shots below are produced by running `shotlist run`
@@ -181,6 +190,8 @@ on its own [`.shotlist.yaml`](.shotlist.yaml) and spliced in automatically.
 | `shotlist check` | Fail if a screenshot drifted from the committed baseline |
 | `shotlist check --update` | Re-shoot and accept the current screenshots as the baseline |
 | `shotlist check --diff DIR` | Also render baseline·current·diff images for changed shots |
+| `shotlist check --json` | Emit the drift report as JSON on stdout (human output moves to stderr) |
+| `shotlist check --update --only NAME` | Re-bless just one shot in place (repeatable) |
 
 ## Develop
 
@@ -192,11 +203,13 @@ playwright install chromium
 pytest                       # the suite is fully offline
 ```
 
-CI runs ruff, mypy, and pytest on Python 3.11 and 3.12. A separate
-**`verify-action`** workflow dogfoods the bundled GitHub Action on every PR —
-running `shotlist run` then `shotlist check` on a Linux runner — so a regression in
-the action is caught before it ships. Releases publish to PyPI automatically via
-Trusted Publishing.
+CI runs ruff, mypy, and pytest — with an 80% coverage gate — on Ubuntu (Python
+3.11, 3.12) and macOS (Python 3.12), so native Terminal capture stays covered
+too. A separate **`verify-action`** workflow dogfoods the bundled GitHub Action
+on every PR two ways: `verify-release` smoke-tests the shipped `@v0.2.0` action +
+PyPI package, and `verify-source` runs the PR's own `action.yml` against its own
+source (`package: -e .`) — so a regression in either is caught before it ships.
+Releases publish to PyPI automatically via Trusted Publishing.
 
 The hero GIF is itself reproducible — [`demo.tape`](demo.tape) + `vhs demo.tape`.
 
