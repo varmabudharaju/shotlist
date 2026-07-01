@@ -329,7 +329,9 @@ def test_run_stamps_environment_and_git_sha(
     config = Config(
         output=OutputSpec(dir="shots"),
         app=None,
-        shots=[CliShot(name="greet", kind="cli", command="echo hi")],
+        # style pinned: the platform default resolves to `rendered` on Linux,
+        # which launches Chromium and stamps a real version instead of None.
+        shots=[CliShot(name="greet", kind="cli", command="echo hi", style="native")],
     )
     run_engine(config, tmp_path)
 
