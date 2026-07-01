@@ -148,10 +148,24 @@ class OutputSpec(_Strict):
     report: bool = True  # write manifest.json + index.html gallery alongside the PNGs
 
 
+class CheckSpec(_Strict):
+    """Tolerance settings for ``shotlist check``.
+
+    ``max_diff_pixel_ratio`` is the fraction of pixels (0..1) that may differ
+    between a shot and its committed baseline before it counts as drift. The
+    default ``0.0`` keeps the historical exact-match behaviour (any byte change is
+    drift); a small value like ``0.001`` (0.1%) absorbs sub-pixel rendering
+    jitter so CI does not fail on cosmetically-identical screenshots.
+    """
+
+    max_diff_pixel_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
 class Config(_Strict):
     output: OutputSpec = Field(default_factory=OutputSpec)
     app: AppSpec | None = None
     shots: list[Shot] = Field(min_length=1)
+    check: CheckSpec = Field(default_factory=CheckSpec)
 
     @model_validator(mode="after")
     def _unique_shot_names(self) -> Self:
