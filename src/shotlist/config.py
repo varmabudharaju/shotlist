@@ -5,6 +5,7 @@ of *how to start the app* and *what to capture*. Everything downstream consumes
 the validated :class:`Config` produced by :func:`load`.
 """
 
+import re
 from pathlib import Path
 from typing import Annotated, Literal, Self
 
@@ -72,7 +73,32 @@ class WebShot(_Strict):
     full_page: bool = True
     selector: str | None = None
     steps: list[Step] = Field(default_factory=list)
+    # CSS selectors whose regions are overlaid with a solid box before capture,
+    # hiding non-deterministic content (timestamps, avatars, live data) so shots
+    # stay reproducible.
+    mask: list[str] = Field(default_factory=list)
     alt: str = ""
+
+
+class ScrubRule(_Strict):
+    """A regex substitution applied to raw CLI output before it is rendered.
+
+    Blanks out non-deterministic fragments (durations, timestamps, PIDs) so a
+    ``rendered`` CLI shot is byte-stable across runs. ``pattern`` is a Python
+    regular expression and ``replace`` its replacement (default: delete the
+    match). Example: ``{pattern: 'in \\d+\\.\\d+s', replace: 'in X.XXs'}``.
+    """
+
+    pattern: str
+    replace: str = ""
+
+    @model_validator(mode="after")
+    def _valid_pattern(self) -> Self:
+        try:
+            re.compile(self.pattern)
+        except re.error as exc:
+            raise ValueError(f"invalid scrub pattern {self.pattern!r}: {exc}") from exc
+        return self
 
 
 class CliShot(_Strict):
@@ -83,6 +109,9 @@ class CliShot(_Strict):
     cols: int = 100
     rows: int = 30
     style: Literal["native", "rendered"] | None = None
+    # Regex substitutions applied to the raw output before rendering, to remove
+    # non-deterministic text (rendered style only; see :class:`ScrubRule`).
+    scrub: list[ScrubRule] = Field(default_factory=list)
     alt: str = ""
 
 
