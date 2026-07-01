@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from playwright.sync_api import Page
 
 from shotlist.backends.web import capture_web
@@ -68,3 +69,51 @@ def test_viewport_is_applied(page: Page, tmp_path: Path) -> None:
     shot = web_shot(page_url(tmp_path), viewport=Viewport(width=640, height=480), full_page=False)
     capture_web(page, shot)
     assert page.viewport_size == {"width": 640, "height": 480}
+
+
+def test_mask_defaults_empty_and_parses() -> None:
+    assert web_shot("http://example.test").mask == []
+    shot = web_shot("http://example.test", mask=["#a", ".b"])
+    assert shot.mask == ["#a", ".b"]
+
+
+def test_mask_and_animations_reach_full_page_screenshot(
+    page: Page, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+    real = page.screenshot
+
+    def spy(**kwargs: object) -> bytes:
+        captured.update(kwargs)
+        return real(**kwargs)  # type: ignore
+
+    monkeypatch.setattr(page, "screenshot", spy)
+    shot = web_shot(page_url(tmp_path), full_page=False, mask=["#box"])
+    data = capture_web(page, shot)
+    assert data.startswith(PNG_MAGIC)
+    assert captured["animations"] == "disabled"
+    mask = captured["mask"]
+    assert isinstance(mask, list) and len(mask) == 1
+
+
+def test_animations_disabled_without_mask(
+    page: Page, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+    real = page.screenshot
+
+    def spy(**kwargs: object) -> bytes:
+        captured.update(kwargs)
+        return real(**kwargs)  # type: ignore
+
+    monkeypatch.setattr(page, "screenshot", spy)
+    capture_web(page, web_shot(page_url(tmp_path), full_page=False))
+    assert captured["animations"] == "disabled"
+    # No mask selectors -> mask kwarg is omitted entirely.
+    assert "mask" not in captured
+
+
+def test_masked_element_screenshot_is_png(page: Page, tmp_path: Path) -> None:
+    shot = web_shot(page_url(tmp_path), selector="#box", mask=["#title"])
+    data = capture_web(page, shot)
+    assert data.startswith(PNG_MAGIC)

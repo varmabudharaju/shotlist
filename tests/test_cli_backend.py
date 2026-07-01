@@ -1,10 +1,13 @@
 import sys
 from pathlib import Path
 
+import pytest
 from playwright.sync_api import Page
+from pydantic import ValidationError
 
+import shotlist.backends.cli as cli_backend
 from shotlist.backends.cli import capture_cli, run_command
-from shotlist.config import CliShot
+from shotlist.config import CliShot, ScrubRule
 from shotlist.render import ansi_to_html, terminal_html
 from tests.conftest import PNG_MAGIC
 
@@ -63,3 +66,65 @@ def test_capture_cli_with_color(page: Page) -> None:
     shot = CliShot(name="t", kind="cli", command=f"{sys.executable} -c \"{code}\"")
     data = capture_cli(page, shot)
     assert data.startswith(PNG_MAGIC)
+
+
+def test_scrub_rule_parses_and_defaults() -> None:
+    rule = ScrubRule(pattern=r"in \d+\.\d+s", replace="in X.XXs")
+    assert rule.pattern == r"in \d+\.\d+s"
+    assert rule.replace == "in X.XXs"
+    # replace defaults to deleting the match
+    assert ScrubRule(pattern="x").replace == ""
+    # scrub defaults to no rules
+    assert CliShot(name="t", kind="cli", command="echo hi").scrub == []
+
+
+def test_invalid_scrub_pattern_rejected() -> None:
+    with pytest.raises(ValidationError):
+        ScrubRule(pattern="(")
+    with pytest.raises(ValidationError):
+        CliShot(name="t", kind="cli", command="echo hi", scrub=[{"pattern": "["}])  # type: ignore
+
+
+def test_scrub_applied_to_raw_before_render(page: Page, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, str] = {}
+
+    def fake_ansi(text: str) -> str:
+        seen["text"] = text
+        return "<span>x</span>"
+
+    monkeypatch.setattr(cli_backend, "ansi_to_html", fake_ansi)
+    shot = CliShot(
+        name="t",
+        kind="cli",
+        command="echo 'done in 3.14s'",
+        scrub=[ScrubRule(pattern=r"in \d+\.\d+s", replace="in X.XXs")],
+    )
+    data = capture_cli(page, shot)
+    assert data.startswith(PNG_MAGIC)
+    assert "in X.XXs" in seen["text"]
+    assert "3.14s" not in seen["text"]
+
+
+def test_scrub_rules_apply_in_order() -> None:
+    # Focused check on the substitution step semantics used by capture_cli.
+    rules = [
+        ScrubRule(pattern=r"\d{4}-\d{2}-\d{2}", replace="DATE"),
+        ScrubRule(pattern=r"pid=\d+", replace="pid=N"),
+    ]
+    text = "started 2026-07-01 pid=4321 ok"
+    import re
+
+    for rule in rules:
+        text = re.sub(rule.pattern, rule.replace, text)
+    assert text == "started DATE pid=N ok"
+
+
+def test_terminal_html_embeds_jetbrains_mono() -> None:
+    html = terminal_html("CONTENT", cols=80)
+    assert "@font-face" in html
+    assert "'JetBrains Mono'" in html
+    assert "data:font/woff2;base64," in html
+    assert "font-weight: 400" in html
+    assert "font-weight: 700" in html
+    # The pre stack now prefers the embedded face.
+    assert "font-family: 'JetBrains Mono'" in html
