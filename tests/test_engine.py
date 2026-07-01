@@ -279,3 +279,121 @@ def test_run_marks_native_cli_as_nondeterministic(
     manifest = json.loads((tmp_path / "shots" / "manifest.json").read_text())
     assert manifest["shots"][0]["deterministic"] is False
     assert manifest["shots"][0]["sha256"]
+
+
+def test_run_records_command_as_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hello")],
+    )
+    results = run_engine(config, tmp_path)
+
+    assert results[0].source == "echo hello"
+    manifest = json.loads((tmp_path / "shots" / "manifest.json").read_text())
+    assert manifest["shots"][0]["source"] == "echo hello"
+
+
+def test_run_session_source_is_step_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal_session", _fake_session)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[
+            SessionShot(
+                name="flow",
+                kind="session",
+                steps=[
+                    SessionStep(name="first", command="echo one", alt="step one"),
+                    SessionStep(name="second", command="echo two"),
+                ],
+            )
+        ],
+    )
+    results = run_engine(config, tmp_path)
+
+    assert [r.source for r in results] == ["echo one", "echo two"]
+    manifest = json.loads((tmp_path / "shots" / "manifest.json").read_text())
+    assert [s["source"] for s in manifest["shots"]] == ["echo one", "echo two"]
+
+
+def test_run_stamps_environment_and_git_sha(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hi")],
+    )
+    run_engine(config, tmp_path)
+
+    manifest = json.loads((tmp_path / "shots" / "manifest.json").read_text())
+    env = manifest["environment"]
+    assert set(env) == {"shotlist", "python", "platform", "playwright", "chromium"}
+    # No browser was launched for a native CLI shot.
+    assert env["chromium"] is None
+    # tmp_path is not a git repo, so git_sha degrades to None (present as a key).
+    assert "git_sha" in manifest
+    assert manifest["git_sha"] is None
+
+
+def test_run_writes_evidence_doc(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots", evidence="docs/test-evidence.md"),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hi", alt="a greeting")],
+    )
+    run_engine(config, tmp_path)
+
+    evidence = tmp_path / "docs" / "test-evidence.md"
+    assert evidence.exists()
+    text = evidence.read_text()
+    assert text.startswith("# shotlist — test evidence")
+    assert "### Greet" in text
+    assert "a greeting" in text
+    assert "`echo hi`" in text
+
+    # Idempotent: a second run leaves the content byte-identical.
+    before = evidence.read_text()
+    run_engine(config, tmp_path)
+    assert evidence.read_text() == before
+
+
+def test_run_evidence_skipped_when_report_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `shotlist check` probes with report=False; evidence must not be written then,
+    # so a check never rewrites the committed evidence doc from temp captures.
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots", report=False, evidence="docs/test-evidence.md"),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hi")],
+    )
+    run_engine(config, tmp_path)
+
+    assert not (tmp_path / "docs" / "test-evidence.md").exists()
+
+
+def test_run_gallery_uses_config_title(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    config = Config(
+        output=OutputSpec(dir="shots", title="Acme Docs"),
+        app=None,
+        shots=[CliShot(name="greet", kind="cli", command="echo hi")],
+    )
+    run_engine(config, tmp_path)
+
+    gallery = (tmp_path / "shots" / "index.html").read_text()
+    assert "<h1>Acme Docs screenshots</h1>" in gallery
