@@ -4,6 +4,20 @@ All notable changes to `shotlist` are documented here. Format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.3.1] — 2026-07-01
+
+Docs-only patch — refreshes the README (and its PyPI mirror) with real,
+regenerated illustrations of the 0.3.0 features.
+
+- New README section "Catch drift before your users do", embedding `check`'s
+  drift output with pixel stats and the badged `check-report.html` — both
+  captured by shotlist itself from a genuinely drifted demo project.
+- Regenerated `proof-report.png` (now showing `output.title`, kind badges, and
+  per-shot `source` lines) and `diff-example.png`; added `check-report.png` to
+  `docs/pipeline.md`.
+- Fixed the README's coverage-gate figure (80% → 85%) and stale alt texts;
+  Action examples and the `verify-release` pin now reference `@v0.3.1`.
+
 ## [0.3.0] — 2026-07-01
 
 ### Added

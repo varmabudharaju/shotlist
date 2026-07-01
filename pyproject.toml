@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shotlist"
-version = "0.3.0"
+version = "0.3.1"
 description = "Reproducible screenshot capture for docs — drive a web app or CLI from a declarative shot list and capture polished feature screenshots."
 readme = "README.md"
 requires-python = ">=3.11"
