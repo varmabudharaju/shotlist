@@ -9,10 +9,7 @@ traceback.
 """
 
 import hashlib
-import importlib.metadata
 import json
-import platform
-import sys
 import tempfile
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
@@ -27,7 +24,7 @@ from shotlist.diff import CHECK_REPORT_NAME, ReportRow, diff_images, render_chec
 from shotlist.engine import _is_deterministic
 from shotlist.lifecycle import ReadinessError
 from shotlist.output import CaptureResult, Writer, slugify
-from shotlist.report import MANIFEST_NAME, Manifest, build_manifest
+from shotlist.report import MANIFEST_NAME, Manifest, build_manifest, collect_environment
 
 app = typer.Typer(
     add_completion=False,
@@ -204,14 +201,6 @@ def _write_check_report(
     return diff_files
 
 
-def _package_version(name: str) -> str | None:
-    """Installed version of ``name``, or ``None`` when it can't be resolved."""
-    try:
-        return importlib.metadata.version(name)
-    except importlib.metadata.PackageNotFoundError:
-        return None
-
-
 def _chromium_version() -> str | None:
     """Launch headless Chromium briefly to read its version; ``None`` on failure.
 
@@ -231,30 +220,20 @@ def _chromium_version() -> str | None:
         return None
 
 
-def _current_environment(*, probe_chromium: bool) -> dict[str, str | None]:
-    """Build this machine's environment stamp in Contract-A shape.
-
-    ``chromium`` is resolved only when ``probe_chromium`` is set — i.e. when the
-    baseline carries a Chromium version worth comparing against — otherwise it is
-    ``None`` and skipped by :func:`compare_environments`. A small local helper on
-    purpose: the report module owns its own copy and the integrate task unifies
-    them later.
-    """
-    return {
-        "shotlist": _package_version("shotlist"),
-        "python": platform.python_version(),
-        "platform": sys.platform,
-        "playwright": _package_version("playwright"),
-        "chromium": _chromium_version() if probe_chromium else None,
-    }
-
-
 def _environment_mismatches(baseline: Mapping[str, object]) -> list[tuple[str, str, str]]:
-    """Compare the baseline's optional ``environment`` block against this machine."""
+    """Compare the baseline's optional ``environment`` block against this machine.
+
+    The current-machine stamp is built by :func:`report.collect_environment` —
+    the single source of truth also used by ``build_manifest`` — so the two sides
+    of the comparison are computed identically. ``chromium`` is resolved (a brief
+    headless launch) only when the baseline recorded a Chromium version worth
+    comparing against; otherwise it stays ``None`` and is skipped by
+    :func:`compare_environments`.
+    """
     raw_env = baseline.get("environment")
     baseline_env = raw_env if isinstance(raw_env, Mapping) else None
     probe_chromium = baseline_env is not None and baseline_env.get("chromium") is not None
-    current_env = _current_environment(probe_chromium=probe_chromium)
+    current_env = collect_environment(_chromium_version() if probe_chromium else None)
     return compare_environments(baseline_env, current_env)
 
 
