@@ -18,7 +18,7 @@ shots:
     cols: 90
     rows: 16
     style: rendered      # a portable, headless-friendly terminal card
-    alt: "shotlist --help showing the init, validate, and run commands"
+    alt: "shotlist --help showing the init, validate, run, and check commands"
     # Redact machine-specific home paths should any leak into the output, so the
     # card is identical on every machine. (No-op on this help text, which prints
     # no paths; the substitution itself is covered by the CLI-backend unit tests.)

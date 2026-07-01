@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "generated_at": "2026-07-01T23:09:18Z",
+  "generated_at": "2026-07-01T23:50:48Z",
   "config": ".shotlist.yaml",
   "shot_count": 2,
   "shots": [
@@ -8,7 +8,7 @@
       "index": 1,
       "name": "The shotlist CLI",
       "kind": "cli",
-      "alt": "shotlist --help showing the init, validate, and run commands",
+      "alt": "shotlist --help showing the init, validate, run, and check commands",
       "file": "01-the-shotlist-cli.png",
       "bytes": 42860,
       "sha256": "ff053f26bc5bb88c1fe0049cba579c193c17e581fc5edba1113f0008fc516f58",
@@ -31,8 +31,8 @@
     "shotlist": "0.2.0",
     "python": "3.11.1",
     "platform": "darwin",
-    "playwright": "1.61.0",
-    "chromium": "149.0.7827.55"
+    "playwright": "1.60.0",
+    "chromium": "148.0.7778.96"
   },
-  "git_sha": "219a402"
+  "git_sha": "c056a80"
 }

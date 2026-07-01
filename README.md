@@ -94,17 +94,31 @@ Every `shotlist run` also writes, next to the PNGs:
 - **`index.html`** — a self-contained gallery you can open and share as a **proof report**;
 - **`manifest.json`** — a machine-readable record of the run (a pipeline artifact).
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/proof-report.png" width="100%" alt="The generated index.html gallery: a header with the shot count and timestamp, then a card per shot showing the screenshot, its name, a kind badge, and its alt text."/>
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/proof-report.png" width="100%" alt="The generated index.html gallery: a title with the shot count and timestamp, then a card per shot showing the screenshot, its name, a kind badge, its alt text, and the command or URL that produced it."/>
 
-Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Gate CI
-with **`shotlist check`** — it re-captures and fails when a screenshot drifts from
-the committed baseline (`shotlist check --update` to accept intended changes; add
-`--diff DIR` to render baseline·current·diff images) — or drop in the bundled
-**GitHub Action**. Set `output.title` to relabel the gallery heading, and
-`output.evidence` to also splice a captioned Markdown test-evidence doc — its own
-file, distinct from `output.dir` (where the PNGs land). Turn the report off with
-`--no-report` (or `output.report: false`). Details in
-**[`docs/pipeline.md`](docs/pipeline.md)**.
+Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Set
+`output.title` to relabel the gallery heading, and `output.evidence` to also
+splice a captioned Markdown test-evidence doc — its own file, distinct from
+`output.dir` (where the PNGs land). Turn the report off with `--no-report`
+(or `output.report: false`).
+
+### Catch drift before your users do
+
+Gate CI with **`shotlist check`** — it re-captures and fails when a screenshot
+drifts from the committed baseline, telling you exactly *how much* moved:
+
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/check.png" width="100%" alt="shotlist check output: service-status changed (1.14% pixels differ) with an arrow to its diff image, queue-drain unchanged, and a pointer to check-report.html"/>
+
+Drift comes with receipts. `--diff DIR` renders a baseline·current·diff 3-up per
+changed shot, plus a **`check-report.html`** that lists every shot with a status
+badge — open it locally or grab it from the CI artifact the bundled **GitHub
+Action** uploads (along with a step summary on the run page):
+
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/check-report.png" width="100%" alt="check-report.html: service-status flagged CHANGED (1.14% pixels differ) with its baseline, current, and highlighted-diff images inline; queue-drain badged UNCHANGED"/>
+
+Bless intended changes with `shotlist check --update` (or `--update --only NAME`
+for one shot), set `check.max_diff_pixel_ratio` to tolerate sub-pixel jitter, and
+script against `check --json`. Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
 
 ## Why shotlist, and not the others
 
@@ -161,11 +175,11 @@ on its own [`.shotlist.yaml`](.shotlist.yaml) and spliced in automatically.
 <!-- shotlist:start -->
 ### The shotlist CLI
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/screenshots/01-the-shotlist-cli.png" width="100%" alt="shotlist --help showing the init, validate, and run commands"/>
+<img src="docs/screenshots/01-the-shotlist-cli.png" width="100%" alt="shotlist --help showing the init, validate, run, and check commands"/>
 
 ### Run options
 
-<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/screenshots/02-run-options.png" width="100%" alt="shotlist run options: --config, --only, and --version"/>
+<img src="docs/screenshots/02-run-options.png" width="100%" alt="shotlist run options: --config, --only, and --version"/>
 
 <!-- shotlist:end -->
 
@@ -203,7 +217,7 @@ playwright install chromium
 pytest                       # the suite is fully offline
 ```
 
-CI runs ruff, mypy, and pytest — with an 80% coverage gate — on Ubuntu (Python
+CI runs ruff, mypy, and pytest — with an 85% coverage gate — on Ubuntu (Python
 3.11, 3.12) and macOS (Python 3.12), so native Terminal capture stays covered
 too. A separate **`verify-action`** workflow dogfoods the bundled GitHub Action
 on every PR two ways: `verify-release` smoke-tests the shipped `@v0.3.0` action +

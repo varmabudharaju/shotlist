@@ -140,6 +140,8 @@ inline.
 
 ![baseline, current, and the highlighted difference](diff-example.png)
 
+![check-report.html listing every shot with a status badge and inline diffs](check-report.png)
+
 ### Environment warnings
 
 Every baseline manifest carries an `environment` block (see [The
