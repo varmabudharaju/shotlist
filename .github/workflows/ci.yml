@@ -6,11 +6,17 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.11", "3.12"]
+        # macOS is shotlist's flagship native-capture platform, so cover it too
+        # — but only on 3.12 to keep runner minutes down.
+        include:
+          - os: macos-14
+            python-version: "3.12"
     steps:
       - uses: actions/checkout@v4
 
@@ -22,8 +28,13 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
-      - name: Install Playwright Chromium
+      - name: Install Playwright Chromium (Linux)
+        if: runner.os == 'Linux'
         run: python -m playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium (macOS)
+        if: runner.os == 'macOS'
+        run: python -m playwright install chromium
 
       - name: Lint (ruff)
         run: ruff check src tests
@@ -31,5 +42,9 @@ jobs:
       - name: Type check (mypy)
         run: mypy src tests
 
-      - name: Test (pytest)
-        run: python -m pytest -q
+      - name: Test (pytest + coverage)
+        run: >-
+          python -m pytest -q
+          --cov=shotlist
+          --cov-report=term-missing
+          --cov-fail-under=85

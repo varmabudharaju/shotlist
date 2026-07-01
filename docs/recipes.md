@@ -11,6 +11,7 @@ list — drop it in your repo and run `shotlist run`. (Install with
 - [5. Versioned visual history across releases](#5-versioned-visual-history-across-releases)
 - [6. Pure-CLI tool docs](#6-pure-cli-tool-docs)
 - [7. Web + CLI in one run](#7-web--cli-in-one-run)
+- [8. Stable CI checks for a busy dashboard](#8-stable-ci-checks-for-a-busy-dashboard)
 
 ---
 
@@ -159,3 +160,38 @@ shots:
   - { name: home,   kind: web, url: http://localhost:5173/, full_page: true, alt: "Home page" }
   - { name: status, kind: cli, command: "mytool status", alt: "CLI status output" }
 ```
+
+## 8. Stable CI checks for a busy dashboard
+
+**When you want** `shotlist check` to stay green on a page full of noise — a live
+clock, an avatar, a duration counter — without giving up on drift-checking it.
+`mask` blanks the flaky regions of a web shot before the screenshot is even
+taken, `scrub` does the same for CLI output, and `check.max_diff_pixel_ratio`
+absorbs whatever sub-pixel jitter is left — together they keep the baseline
+honest instead of throwing it out.
+
+```yaml
+check:
+  max_diff_pixel_ratio: 0.001   # up to 0.1% of pixels may still differ before it's drift
+
+shots:
+  - name: dashboard
+    kind: web
+    url: http://localhost:5173/dashboard
+    full_page: true
+    mask: ["#live-clock", ".user-avatar"]   # these regions are boxed out before capture
+    alt: "Dashboard"
+
+  - name: status
+    kind: cli
+    command: "mytool status"
+    style: rendered
+    scrub:
+      - { pattern: 'in \d+\.\d+s', replace: 'in X.XXs' }
+      - { pattern: 'pid \d+', replace: 'pid NNNN' }
+    alt: "CLI status output"
+```
+
+Now `shotlist check` only fails when something in the shot actually changed.
+See [Drift checking](pipeline.md#drift-checking--shotlist-check) for the full
+tolerance and masking/scrubbing story.

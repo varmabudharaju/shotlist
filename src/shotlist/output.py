@@ -9,6 +9,7 @@ markers, so re-running ``shotlist`` refreshes docs without piling up duplicates.
 import html
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from shotlist.config import OutputSpec
@@ -41,9 +42,11 @@ class CaptureResult:
 
     ``src`` is the POSIX path of the PNG relative to the repo root, suitable for
     dropping straight into an ``<img src="...">`` tag in committed Markdown.
-    ``deterministic`` is whether the shot reproduces byte-for-byte across runs
-    (web and rendered-CLI do; a real Terminal screenshot does not) — drift checks
-    only compare deterministic shots.
+    ``source`` records *what* produced the shot — the page URL for a web shot, or
+    the command for a CLI shot or session step — so the manifest and gallery are
+    self-documenting evidence. ``deterministic`` is whether the shot reproduces
+    byte-for-byte across runs (web and rendered-CLI do; a real Terminal screenshot
+    does not) — drift checks only compare deterministic shots.
     """
 
     name: str
@@ -52,6 +55,7 @@ class CaptureResult:
     alt: str
     kind: str
     deterministic: bool = True
+    source: str = ""
 
 
 class Writer:
@@ -76,8 +80,14 @@ class Writer:
         alt: str,
         kind: str,
         deterministic: bool = True,
+        source: str = "",
     ) -> CaptureResult:
-        """Write ``data`` as ``NN-slug.png`` and describe the result."""
+        """Write ``data`` as ``NN-slug.png`` and describe the result.
+
+        ``source`` is the URL or command that produced the shot; it is carried
+        through onto the returned :class:`CaptureResult` for the manifest and
+        gallery. It defaults to ``""`` so existing callers keep working.
+        """
         target = self.target_dir()
         target.mkdir(parents=True, exist_ok=True)
         filename = f"{index:02d}-{slugify(name)}.png"
@@ -90,7 +100,13 @@ class Writer:
             # probe); a repo-relative src is meaningless, so use the bare filename.
             src = filename
         return CaptureResult(
-            name=name, path=path, src=src, alt=alt, kind=kind, deterministic=deterministic
+            name=name,
+            path=path,
+            src=src,
+            alt=alt,
+            kind=kind,
+            deterministic=deterministic,
+            source=source,
         )
 
     def img_snippet(self, result: CaptureResult) -> str:
@@ -106,6 +122,49 @@ class Writer:
             sections.append(f"### {title}\n\n{self.img_snippet(result)}\n")
         return "\n".join(sections)
 
+    def evidence_block(self, results: list[CaptureResult]) -> str:
+        """Render a captioned test-evidence section per result, blank-line joined.
+
+        Each section is a title-cased ``### heading``, the ``<img>`` snippet, the
+        ``alt`` text as a caption line, and the ``source`` (URL or command) as an
+        inline-code line — the empty caption/source lines are simply omitted.
+        """
+        sections: list[str] = []
+        for result in results:
+            title = result.name.replace("-", " ").replace("_", " ").title()
+            parts = [f"### {title}", self.img_snippet(result)]
+            if result.alt:
+                parts.append(result.alt)
+            if result.source:
+                parts.append(f"`{result.source}`")
+            sections.append("\n\n".join(parts) + "\n")
+        return "\n".join(sections)
+
+    def _splice(self, path: Path, block: str, fresh_section: str) -> bool:
+        """Splice ``block`` between the markers in ``path``, idempotently.
+
+        Replaces whatever currently sits between the markers (idempotent on
+        re-run), or appends ``fresh_section`` (which must itself carry the
+        markers around ``block``) when they are absent, creating the file if
+        needed. Returns whether the file's content actually changed.
+        """
+        original = path.read_text() if path.exists() else ""
+
+        start = original.find(_START_MARKER)
+        end = original.find(_END_MARKER)
+        if start != -1 and end != -1 and start < end:
+            before = original[: start + len(_START_MARKER)]
+            after = original[end:]
+            updated = f"{before}\n{block}\n{after}"
+        else:
+            updated = original + fresh_section
+
+        if updated == original:
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(updated)
+        return True
+
     def update_readme(self, results: list[CaptureResult], readme_path: Path) -> bool:
         """Splice the rendered block into ``readme_path`` between the markers.
 
@@ -115,21 +174,29 @@ class Writer:
         content actually changed.
         """
         block = self.markdown_block(results)
-        original = readme_path.read_text() if readme_path.exists() else ""
+        fresh_section = f"\n## Screenshots\n\n{_START_MARKER}\n{block}\n{_END_MARKER}\n"
+        return self._splice(readme_path, block, fresh_section)
 
-        start = original.find(_START_MARKER)
-        end = original.find(_END_MARKER)
-        if start != -1 and end != -1 and start < end:
-            before = original[: start + len(_START_MARKER)]
-            after = original[end:]
-            updated = f"{before}\n{block}\n{after}"
-        else:
-            section = (
-                f"\n## Screenshots\n\n{_START_MARKER}\n{block}\n{_END_MARKER}\n"
-            )
-            updated = original + section
+    def write_evidence(
+        self,
+        results: list[CaptureResult],
+        evidence_path: Path,
+        *,
+        generated_at: str | None = None,
+        title: str = "shotlist",
+    ) -> bool:
+        """Write/splice a captioned test-evidence Markdown doc at ``evidence_path``.
 
-        if updated == original:
-            return False
-        readme_path.write_text(updated)
-        return True
+        When the file is absent it is created with a ``# <title> — test evidence``
+        heading and a generated timestamp, then the captioned sections between the
+        markers. On re-run the sections between the markers are replaced in place
+        (idempotent) while the existing heading/timestamp are left untouched.
+        Returns whether the file's content actually changed.
+        """
+        block = self.evidence_block(results)
+        stamp = generated_at or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        heading = f"# {title} — test evidence"
+        fresh_section = (
+            f"{heading}\n\n_Generated {stamp}._\n\n{_START_MARKER}\n{block}\n{_END_MARKER}\n"
+        )
+        return self._splice(evidence_path, block, fresh_section)

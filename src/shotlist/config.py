@@ -5,6 +5,7 @@ of *how to start the app* and *what to capture*. Everything downstream consumes
 the validated :class:`Config` produced by :func:`load`.
 """
 
+import re
 from pathlib import Path
 from typing import Annotated, Literal, Self
 
@@ -72,7 +73,32 @@ class WebShot(_Strict):
     full_page: bool = True
     selector: str | None = None
     steps: list[Step] = Field(default_factory=list)
+    # CSS selectors whose regions are overlaid with a solid box before capture,
+    # hiding non-deterministic content (timestamps, avatars, live data) so shots
+    # stay reproducible.
+    mask: list[str] = Field(default_factory=list)
     alt: str = ""
+
+
+class ScrubRule(_Strict):
+    """A regex substitution applied to raw CLI output before it is rendered.
+
+    Blanks out non-deterministic fragments (durations, timestamps, PIDs) so a
+    ``rendered`` CLI shot is byte-stable across runs. ``pattern`` is a Python
+    regular expression and ``replace`` its replacement (default: delete the
+    match). Example: ``{pattern: 'in \\d+\\.\\d+s', replace: 'in X.XXs'}``.
+    """
+
+    pattern: str
+    replace: str = ""
+
+    @model_validator(mode="after")
+    def _valid_pattern(self) -> Self:
+        try:
+            re.compile(self.pattern)
+        except re.error as exc:
+            raise ValueError(f"invalid scrub pattern {self.pattern!r}: {exc}") from exc
+        return self
 
 
 class CliShot(_Strict):
@@ -83,6 +109,9 @@ class CliShot(_Strict):
     cols: int = 100
     rows: int = 30
     style: Literal["native", "rendered"] | None = None
+    # Regex substitutions applied to the raw output before rendering, to remove
+    # non-deterministic text (rendered style only; see :class:`ScrubRule`).
+    scrub: list[ScrubRule] = Field(default_factory=list)
     alt: str = ""
 
 
@@ -146,12 +175,28 @@ class OutputSpec(_Strict):
     version: str | None = None
     readme: str | None = None
     report: bool = True  # write manifest.json + index.html gallery alongside the PNGs
+    title: str | None = None  # gallery / evidence page title (defaults to "shotlist")
+    evidence: str | None = None  # optional path to a captioned test-evidence Markdown doc
+
+
+class CheckSpec(_Strict):
+    """Tolerance settings for ``shotlist check``.
+
+    ``max_diff_pixel_ratio`` is the fraction of pixels (0..1) that may differ
+    between a shot and its committed baseline before it counts as drift. The
+    default ``0.0`` keeps the historical exact-match behaviour (any byte change is
+    drift); a small value like ``0.001`` (0.1%) absorbs sub-pixel rendering
+    jitter so CI does not fail on cosmetically-identical screenshots.
+    """
+
+    max_diff_pixel_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class Config(_Strict):
     output: OutputSpec = Field(default_factory=OutputSpec)
     app: AppSpec | None = None
     shots: list[Shot] = Field(min_length=1)
+    check: CheckSpec = Field(default_factory=CheckSpec)
 
     @model_validator(mode="after")
     def _unique_shot_names(self) -> Self:

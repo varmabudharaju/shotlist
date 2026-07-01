@@ -33,6 +33,15 @@ def capture_web(page: Page, shot: WebShot) -> bytes:
     page.goto(shot.url)
     for step in shot.steps:
         apply_step(page, step)
+    # ``animations="disabled"`` finishes CSS transitions/animations and pins them
+    # to their end state; ``mask`` overlays the given selectors with a solid box.
+    # Together they make web shots reproducible across runs and machines.
+    mask = [page.locator(selector) for selector in shot.mask]
     if shot.selector is not None:
-        return page.locator(shot.selector).screenshot()
-    return page.screenshot(full_page=shot.full_page)
+        locator = page.locator(shot.selector)
+        if mask:
+            return locator.screenshot(animations="disabled", mask=mask)
+        return locator.screenshot(animations="disabled")
+    if mask:
+        return page.screenshot(full_page=shot.full_page, animations="disabled", mask=mask)
+    return page.screenshot(full_page=shot.full_page, animations="disabled")

@@ -3,6 +3,13 @@
 output:
   dir: docs/screenshots
   readme: README.md
+  title: shotlist CLI
+  evidence: docs/test-evidence.md
+
+# Allow a hair of pixel noise before a rendered-CLI shot counts as drift, so a
+# harmless anti-aliasing wobble across machines doesn't fail `shotlist check`.
+check:
+  max_diff_pixel_ratio: 0.001
 
 shots:
   - name: The shotlist CLI
@@ -12,6 +19,12 @@ shots:
     rows: 16
     style: rendered      # a portable, headless-friendly terminal card
     alt: "shotlist --help showing the init, validate, and run commands"
+    # Redact machine-specific home paths should any leak into the output, so the
+    # card is identical on every machine. (No-op on this help text, which prints
+    # no paths; the substitution itself is covered by the CLI-backend unit tests.)
+    scrub:
+      - pattern: "/Users/[^/\\s]+"
+        replace: "~"
 
   - name: Run options
     kind: cli

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-07-01T23:09:18Z",
+  "config": ".shotlist.yaml",
+  "shot_count": 2,
+  "shots": [
+    {
+      "index": 1,
+      "name": "The shotlist CLI",
+      "kind": "cli",
+      "alt": "shotlist --help showing the init, validate, and run commands",
+      "file": "01-the-shotlist-cli.png",
+      "bytes": 42860,
+      "sha256": "ff053f26bc5bb88c1fe0049cba579c193c17e581fc5edba1113f0008fc516f58",
+      "deterministic": true,
+      "source": ".venv/bin/shotlist --help"
+    },
+    {
+      "index": 2,
+      "name": "Run options",
+      "kind": "cli",
+      "alt": "shotlist run options: --config, --only, and --version",
+      "file": "02-run-options.png",
+      "bytes": 35315,
+      "sha256": "535a3aa12dff786d6d5bb02b5f813ae692d3ac7957aed36dd8b15f42e232aff3",
+      "deterministic": true,
+      "source": ".venv/bin/shotlist run --help"
+    }
+  ],
+  "environment": {
+    "shotlist": "0.2.0",
+    "python": "3.11.1",
+    "platform": "darwin",
+    "playwright": "1.61.0",
+    "chromium": "149.0.7827.55"
+  },
+  "git_sha": "219a402"
+}

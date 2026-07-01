@@ -22,8 +22,15 @@ copy `docs/screenshots/` anywhere and the gallery still renders.
   "shot_count": 2,
   "shots": [
     { "index": 1, "name": "cli-help", "kind": "cli", "alt": "capture top-level help",
-      "file": "01-cli-help.png", "bytes": 35864 }
-  ]
+      "file": "01-cli-help.png", "bytes": 35864,
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "deterministic": true, "source": "mytool --help" }
+  ],
+  "environment": {
+    "shotlist": "0.3.0", "python": "3.12.3", "platform": "darwin",
+    "playwright": "1.47.0", "chromium": "119.0.6045.9"
+  },
+  "git_sha": "a1b2c3d"
 }
 ```
 
@@ -33,7 +40,9 @@ copy `docs/screenshots/` anywhere and the gallery still renders.
 | `generated_at` | UTC timestamp of the run (ISO-8601). |
 | `config` | The shot list the run used (the `--config` path). |
 | `shot_count` | Number of images produced. |
-| `shots[]` | Per image: `index`, `name`, `kind` (`web`/`cli`/`session`), `alt`, `file` (bare PNG filename), and `bytes`. |
+| `shots[]` | Per image: `index`, `name`, `kind` (`web`/`cli`/`session`), `alt`, `file` (bare PNG filename), `bytes`, `sha256` (content hash), `deterministic` (whether the shot reproduces byte-for-byte across runs), and `source` (the URL or command that produced it). |
+| `environment` | Versions that shape a capture: `shotlist`, `python`, `platform`, `playwright`, `chromium` (installed package versions plus the interpreter and OS; `chromium` is `null` when no browser was launched for the run). `check` compares this against the current machine — see [Environment warnings](#environment-warnings) below. |
+| `git_sha` | Short commit SHA of the repo at capture time, or `null` when git is missing, the run is outside a repository, or the lookup otherwise fails. |
 
 ## Drift checking — `shotlist check`
 
@@ -58,13 +67,93 @@ shotlist check --diff capture-diffs  # also render a visual diff of every change
 Snapshot ergonomics: `check` to verify, `check --update` to bless an intended
 change (like `jest -u`).
 
+### Tolerance — `check.max_diff_pixel_ratio`
+
+An identical `sha256` is an instant "unchanged" with no image decoding at all.
+When the hash differs, that may still be noise — sub-pixel anti-aliasing, a
+blinking cursor — rather than a real change. Set a tolerance budget and `check`
+falls back to a pixel diff, counting drift only once the changed-pixel fraction
+exceeds it:
+
+```yaml
+check:
+  max_diff_pixel_ratio: 0.001   # up to 0.1% of pixels may differ before it's drift
+```
+
+Below the budget, the shot reports `unchanged` with the stats in the reason
+(`within tolerance (0.02% <= 0.10%)`); above it, `changed` (`0.32% pixels
+differ`). A size change (e.g. `1280x800 -> 1280x912`) always counts as drift,
+tolerance or not. The default, `0.0`, keeps the historical exact-match behavior.
+
+### Selective update — `--update --only NAME`
+
+`--update` alone re-shoots and writes the *whole* baseline. `--update --only
+NAME` (repeatable) re-blesses just the named shots in place instead:
+
+```bash
+shotlist check --update --only dashboard --only cli-help
+```
+
+It re-captures only those shots, overwrites their existing baseline PNG
+(preserving its `NN-` file numbering), and rewrites just their `sha256`/`bytes`
+plus the manifest's `generated_at`. Every other shot, and every top-level key
+this command doesn't manage — including the `environment` block — is copied
+through untouched. That's a deliberate trade-off: a selectively re-blessed shot
+keeps its *old* `environment` stamp until you run a full `check --update`. Only
+deterministic shots already in the baseline can be re-blessed this way; a
+native/session shot, an unknown name, or a name missing from the baseline is a
+clear error.
+
+### JSON output — `--json`
+
+```bash
+shotlist check --json > report.json    # machine-readable; human lines go to stderr
+```
+
+```json
+{
+  "drifted": true,
+  "environment_mismatch": ["chromium: 118.0.5993.70 -> 119.0.6045.9"],
+  "shots": [
+    {
+      "name": "dashboard",
+      "status": "changed",
+      "reason": "0.32% pixels differ",
+      "changed_pixel_ratio": 0.0032,
+      "diff_file": "dashboard.diff.png"
+    }
+  ]
+}
+```
+
+`diff_file` is present only when `--diff DIR` was also passed. With `--json`,
+stdout carries only this document — every human-readable line (per-shot status,
+environment warnings, the verdict) moves to stderr, so stdout stays parseable.
+
 ### Visual diffs
 
 `--diff DIR` renders, for each changed shot, a 3-up image — **baseline · current ·
-highlighted difference** — plus a `diff.html` gallery you can open or upload as a
-CI artifact:
+highlighted difference** — plus `check-report.html` (renamed from `diff.html`):
+unlike the old gallery, it lists **every** shot, not only the failures, each with
+a status badge and its reason; changed shots additionally show their diff image
+inline.
 
 ![baseline, current, and the highlighted difference](diff-example.png)
+
+### Environment warnings
+
+Every baseline manifest carries an `environment` block (see [The
+manifest](#the-manifest)). `check` compares it against the machine running the
+check and, on any mismatch, prints a warning per differing key instead of
+failing the shot itself:
+
+```
+⚠ environment: chromium 118.0.5993.70 -> 119.0.6045.9 (drift may be environmental)
+```
+
+`--json` carries the same information as `"key: old -> new"` strings under
+`environment_mismatch`. A key missing or `null` on either side is skipped, so an
+un-probed Chromium version never produces a spurious warning.
 
 ## In a pipeline
 
@@ -97,7 +186,21 @@ jobs:
 ```
 
 Pass `with: { command: run }` to regenerate instead, or
-`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.1.0` tag when you upgrade.
+`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.2.0` tag when you upgrade.
+
+Two more inputs beyond `command`/`config`:
+
+| Input | Default | What it does |
+| --- | --- | --- |
+| `package` | `shotlist` | Passed to `pip install`; use `-e .` to exercise a checked-out source tree (e.g. a PR) instead of the published package. |
+| `diff-dir` | `shotlist-diffs` | Directory `check --diff` writes into. |
+
+On `check`, the action also renders a Markdown **step summary** — the result
+line, any environment-mismatch bullets, and a shot/status/detail table built
+from the `--json` report — and **uploads** `<diff-dir>` plus the raw JSON as a
+`shotlist-check-<job>` build artifact, even when the check fails; the job still
+exits with `check`'s own exit code afterward, so a real drift still turns the
+build red.
 
 See also [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci).
 
