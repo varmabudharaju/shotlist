@@ -9,6 +9,7 @@ import contextlib
 import fcntl
 import os
 import pty
+import re
 import select
 import signal
 import struct
@@ -92,5 +93,9 @@ def capture_cli(page: Page, shot: CliShot, cwd: str | None = None) -> bytes:
     """
     working_dir = cwd if cwd is not None else shot.cwd
     raw = run_command(shot.command, working_dir, shot.cols)
+    # Scrub non-deterministic fragments out of the raw ANSI text before it is
+    # converted to HTML, so rendered CLI shots stay byte-stable across runs.
+    for rule in shot.scrub:
+        raw = re.sub(rule.pattern, rule.replace, raw)
     page.set_content(terminal_html(ansi_to_html(raw), shot.cols))
     return page.locator(".frame").screenshot()
