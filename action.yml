@@ -13,16 +13,121 @@ inputs:
     description: "Path to the shot list."
     required: false
     default: ".shotlist.yaml"
+  package:
+    description: >-
+      Package spec passed to `pip install`. Defaults to the published
+      "shotlist"; pass "-e ." to install the checked-out source instead (handy
+      for exercising a pull request's own code).
+    required: false
+    default: "shotlist"
+  diff-dir:
+    description: "Directory where 'check' writes per-shot diff PNGs and the HTML report."
+    required: false
+    default: "shotlist-diffs"
 
 runs:
   using: "composite"
   steps:
     - name: Install shotlist
       shell: bash
-      run: pip install shotlist
+      run: pip install ${{ inputs.package }}
+
     - name: Install Chromium
       shell: bash
       run: python -m playwright install --with-deps chromium
-    - name: shotlist ${{ inputs.command }}
+
+    - name: shotlist run
+      if: inputs.command == 'run'
       shell: bash
-      run: shotlist ${{ inputs.command }} --config "${{ inputs.config }}"
+      run: shotlist run --config "${{ inputs.config }}"
+
+    - name: shotlist check
+      if: inputs.command == 'check'
+      shell: bash
+      run: |
+        # Capture the exit code so we can render a summary and upload diffs even
+        # when drift is detected; the step re-exits with this code at the end so
+        # a failing check still turns the job red. `set +e` stays on for the rest
+        # of the step so best-effort summary rendering can never mask that code.
+        set +e
+        shotlist check \
+          --config "${{ inputs.config }}" \
+          --diff "${{ inputs.diff-dir }}" \
+          --json > shotlist-check.json
+        code=$?
+        echo "shotlist check exit code: ${code}"
+
+        # Render a Markdown summary from the Contract-B JSON. Uses the runner's
+        # python3 (no jq dependency) and tolerates a missing or empty report.
+        python3 <<'PY'
+        import json
+        import os
+
+        path = "shotlist-check.json"
+        data = None
+        try:
+            with open(path, encoding="utf-8") as fh:
+                raw = fh.read().strip()
+            if raw:
+                data = json.loads(raw)
+        except (OSError, ValueError):
+            data = None
+
+        lines = ["## shotlist check", ""]
+        if not isinstance(data, dict):
+            lines.append(
+                "_No check report was produced "
+                "(missing or empty `shotlist-check.json`)._"
+            )
+        else:
+            if data.get("drifted"):
+                lines.append("**Result:** drift detected :warning:")
+            else:
+                lines.append("**Result:** no drift :white_check_mark:")
+            lines.append("")
+
+            mismatch = data.get("environment_mismatch") or []
+            if mismatch:
+                lines.append("### Environment mismatch")
+                lines.extend(f"- `{item}`" for item in mismatch)
+                lines.append("")
+
+            shots = data.get("shots") or []
+            if shots:
+                lines.append("| shot | status | detail |")
+                lines.append("| --- | --- | --- |")
+                for shot in shots:
+                    name = str(shot.get("name", "?"))
+                    status = str(shot.get("status", "?"))
+                    detail = shot.get("reason")
+                    if not detail:
+                        ratio = shot.get("changed_pixel_ratio")
+                        detail = f"{ratio:.4%}" if isinstance(ratio, (int, float)) else ""
+                    lines.append(f"| {name} | {status} | {detail} |")
+                lines.append("")
+
+            lines.append(
+                "Diff images and the full JSON report are attached as the "
+                "`shotlist-check-*` build artifact."
+            )
+
+        out = "\n".join(lines) + "\n"
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as fh:
+                fh.write(out)
+        else:
+            print(out)
+        PY
+
+        exit "${code}"
+
+    - name: Upload diff report
+      if: always() && inputs.command == 'check'
+      uses: actions/upload-artifact@v4
+      with:
+        name: shotlist-check-${{ github.job }}
+        path: |
+          ${{ inputs.diff-dir }}
+          shotlist-check.json
+        if-no-files-found: ignore
