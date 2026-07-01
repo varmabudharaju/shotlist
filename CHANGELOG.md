@@ -51,7 +51,7 @@ Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 - CI: a `verify-source` job in `verify-action.yml` exercises the PR's own
   `action.yml` against its own source (`package: -e .`), alongside the renamed
   `verify-release` job (still pinned `@v0.2.0`); a `macos-14` (Python 3.12)
-  matrix leg in `ci.yml`; a `pytest --cov-fail-under=80` coverage gate.
+  matrix leg in `ci.yml`; a `pytest --cov-fail-under=85` coverage gate.
 
 ### Changed
 
