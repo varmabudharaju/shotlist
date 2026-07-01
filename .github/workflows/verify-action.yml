@@ -1,14 +1,18 @@
 name: verify-action
 
-# Exercises the bundled composite action (pinned to the released tag) on every PR:
-# it generates screenshots with `shotlist run`, then drift-checks them with
-# `shotlist check`. Both run on the same Linux runner, so the check is deterministic.
+# Exercises the bundled composite action on every PR in two complementary ways:
+#   verify-release — smoke-tests the SHIPPED action + PyPI package (pinned tag),
+#                    proving the released integration still works end to end.
+#   verify-source  — runs the PR's own action.yml against the PR's source
+#                    (`package: -e .`), so a regression in either the action or
+#                    the CLI is caught before it ships.
+# Both run on Linux, where the rendered CLI shots are deterministic.
 on:
   pull_request:
   workflow_dispatch:
 
 jobs:
-  verify:
+  verify-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,5 +36,35 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ci-demo-screenshots
+          name: ci-demo-screenshots-${{ github.job }}
+          path: .github/ci-demo/shots
+
+  verify-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate screenshots (PR action + PR source)
+        uses: ./
+        with:
+          command: run
+          config: .github/ci-demo/.shotlist.yaml
+          package: "-e ."
+
+      - name: Drift check (PR action + PR source)
+        uses: ./
+        with:
+          command: check
+          config: .github/ci-demo/.shotlist.yaml
+          package: "-e ."
+          diff-dir: shotlist-diffs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-demo-screenshots-${{ github.job }}
           path: .github/ci-demo/shots
