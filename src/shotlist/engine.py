@@ -29,8 +29,9 @@ from shotlist.report import write_report
 
 Shot = WebShot | CliShot | SessionShot
 
-# One produced image: (name, alt, kind, png_bytes).
-Capture = tuple[str, str, str, bytes]
+# One produced image: (name, alt, kind, png_bytes, source).
+# ``source`` is the URL (web) or command (cli / session step) that produced it.
+Capture = tuple[str, str, str, bytes, str]
 
 
 def _select_shots(config: Config, only: list[str] | None) -> list[Shot]:
@@ -86,7 +87,7 @@ def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> list[Captur
     """Capture one shot, returning one or more images (sessions yield many)."""
     if isinstance(shot, WebShot):
         assert page is not None  # guaranteed by _shot_needs_page
-        return [(shot.name, shot.alt, "web", capture_web(page, shot))]
+        return [(shot.name, shot.alt, "web", capture_web(page, shot), shot.url)]
 
     if isinstance(shot, SessionShot):
         cwd = _resolve_cwd(shot.cwd, repo_root)
@@ -100,16 +101,16 @@ def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> list[Captur
         ]
         images = capture_terminal_session(steps, cwd, shot.cols, shot.rows)
         return [
-            (step.name, step.alt, "session", data)
+            (step.name, step.alt, "session", data, step.command)
             for step, data in zip(shot.steps, images, strict=True)
         ]
 
     cwd = _resolve_cwd(shot.cwd, repo_root)
     if _effective_style(shot) == "native":
         data = capture_terminal(shot.command, cwd, shot.cols, shot.rows)
-        return [(shot.name, shot.alt, "cli", data)]
+        return [(shot.name, shot.alt, "cli", data, shot.command)]
     assert page is not None  # rendered CLI needs the browser
-    return [(shot.name, shot.alt, "cli", capture_cli(page, shot, cwd))]
+    return [(shot.name, shot.alt, "cli", capture_cli(page, shot, cwd), shot.command)]
 
 
 def _capture_all(
@@ -128,9 +129,11 @@ def _capture_all(
             if page is not None:
                 page.close()
         deterministic = _is_deterministic(shot)
-        for name, alt, kind, data in captures:
+        for name, alt, kind, data, source in captures:
             index += 1
-            results.append(writer.write(index, name, data, alt, kind, deterministic))
+            results.append(
+                writer.write(index, name, data, alt, kind, deterministic, source)
+            )
     return results
 
 
@@ -144,14 +147,17 @@ def run(
 
     Boots ``config.app`` when present (waiting on ``ready`` if given), captures
     each selected shot to ``NN-name.png`` via :class:`~shotlist.output.Writer`
-    (a session expands to one image per step), optionally splices the images into
-    the README, and—unless ``output.report`` is off—writes a ``manifest.json`` and
-    an ``index.html`` gallery beside the PNGs. The browser (when used) and the app
-    are always torn down.
+    (a session expands to one image per step), and optionally splices the images
+    into the README. Unless ``output.report`` is off it then writes the run's
+    proof-report artifacts beside the PNGs: a captioned ``output.evidence`` doc
+    (when configured) plus a ``manifest.json`` (stamped with per-shot sources, the
+    run environment, and the git SHA) and an ``index.html`` gallery. The browser
+    (when used) and the app are always torn down.
     """
     selected = _select_shots(config, only)
     writer = Writer(config.output, repo_root)
     results: list[CaptureResult] = []
+    chromium_version: str | None = None
 
     app: AppProcess | None = None
     if config.app is not None:
@@ -168,6 +174,7 @@ def run(
         if any(_shot_needs_page(shot) for shot in selected):
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
+                chromium_version = browser.version
                 try:
                     results = _capture_all(selected, repo_root, writer, browser)
                 finally:
@@ -178,15 +185,32 @@ def run(
         if app is not None:
             app.stop()
 
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    title = config.output.title or "shotlist"
+
     if config.output.readme is not None:
         writer.update_readme(results, repo_root / config.output.readme)
 
+    # The evidence doc and the manifest/gallery are the run's "proof report"
+    # artifacts, so both are gated on ``report``. This also keeps ``shotlist
+    # check`` non-destructive: its probe runs with ``report=False`` and so never
+    # rewrites the committed evidence doc from temp-dir captures.
     if config.output.report:
+        if config.output.evidence is not None:
+            writer.write_evidence(
+                results,
+                repo_root / config.output.evidence,
+                generated_at=generated_at,
+                title=title,
+            )
         write_report(
             results,
             writer.target_dir(),
-            generated_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            generated_at=generated_at,
             config=config_path or "",
+            title=title,
+            chromium=chromium_version,
+            repo_root=repo_root,
         )
 
     return results

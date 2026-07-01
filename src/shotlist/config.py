@@ -175,6 +175,8 @@ class OutputSpec(_Strict):
     version: str | None = None
     readme: str | None = None
     report: bool = True  # write manifest.json + index.html gallery alongside the PNGs
+    title: str | None = None  # gallery / evidence page title (defaults to "shotlist")
+    evidence: str | None = None  # optional path to a captioned test-evidence Markdown doc
 
 
 class Config(_Strict):
