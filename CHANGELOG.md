@@ -4,7 +4,7 @@ All notable changes to `shotlist` are documented here. Format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.3.3] — 2026-07-01
 
 - Flow diagrams are now **committed PNG images** (`docs/diagrams/`), embedded in
   the README ("How it works" shot-routing + the drift-check loop) and throughout

@@ -184,11 +184,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: varmabudharaju/shotlist@v0.3.2      # `command` defaults to check
+      - uses: varmabudharaju/shotlist@v0.3.3      # `command` defaults to check
 ```
 
 Pass `with: { command: run }` to regenerate instead, or
-`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.3.2` tag when you upgrade.
+`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.3.3` tag when you upgrade.
 
 Two more inputs beyond `command`/`config`:
 

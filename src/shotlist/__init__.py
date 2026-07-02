@@ -5,4 +5,4 @@ capture polished, repeatable feature screenshots for READMEs, posts, and
 test-evidence documents.
 """
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
