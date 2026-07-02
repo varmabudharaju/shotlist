@@ -154,7 +154,13 @@ needs nothing.)
 The clever part is what *isn't* here: **no AI runs at capture time.** Claude's only
 job is to *author* the `.shotlist.yaml` once by reading your repo; after that the
 engine is a plain, deterministic program — fast, free, and re-runnable in CI with
-no model in the loop. See the full design in [`docs/design.md`](docs/design.md).
+no model in the loop.
+
+Want the full picture? **[`docs/how-it-works.md`](docs/how-it-works.md)** walks
+every stage with flow diagrams — the run pipeline, how shots route to backends,
+what one run does step by step, the `check` drift loop, and the determinism
+layers that make the same config produce the same pixels. The design rationale
+lives in [`docs/design.md`](docs/design.md).
 
 **Robust by design.** The readiness probe (HTTP / TCP port / log line) means you
 never screenshot a half-booted app, and the app is launched in its own process

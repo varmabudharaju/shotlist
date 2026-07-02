@@ -4,6 +4,14 @@ All notable changes to `shotlist` are documented here. Format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+- New **[`docs/how-it-works.md`](docs/how-it-works.md)**: a full plain-language
+  walkthrough with Mermaid flow diagrams — the run pipeline, shot routing, a
+  step-by-step sequence of one run, the `check` drift loop and its human
+  workflow, the determinism layers, and a module map. Linked from the README's
+  "How it works" section.
+
 ## [0.3.1] — 2026-07-01
 
 Docs-only patch — refreshes the README (and its PyPI mirror) with real,
