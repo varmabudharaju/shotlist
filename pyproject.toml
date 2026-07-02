@@ -46,6 +46,7 @@ packages = ["src/shotlist"]
 # the screenshots, the demo GIF, or the GIF source. Keeps the sdist small.
 exclude = [
     "docs/screenshots",
+    "docs/diagrams",
     "docs/demo.gif",
     "docs/proof-report.png",
     "docs/check.png",

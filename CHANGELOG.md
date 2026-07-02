@@ -4,6 +4,14 @@ All notable changes to `shotlist` are documented here. Format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+- Flow diagrams are now **committed PNG images** (`docs/diagrams/`), embedded in
+  the README ("How it works" shot-routing + the drift-check loop) and throughout
+  `docs/how-it-works.md` — visible on GitHub, PyPI, and any Markdown viewer, not
+  just where Mermaid renders. Each image keeps its editable Mermaid source in a
+  collapsible block beneath it.
+
 ## [0.3.2] — 2026-07-01
 
 - New **[`docs/how-it-works.md`](docs/how-it-works.md)**: a full plain-language

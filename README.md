@@ -118,7 +118,11 @@ Action** uploads (along with a step summary on the run page):
 
 Bless intended changes with `shotlist check --update` (or `--update --only NAME`
 for one shot), set `check.max_diff_pixel_ratio` to tolerate sub-pixel jitter, and
-script against `check --json`. Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
+script against `check --json`. The whole loop, end to end:
+
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/diagrams/drift-workflow.png" width="100%" alt="Flow diagram: shotlist run creates the baseline; PNGs and manifest.json are committed; CI runs shotlist check on every PR — no drift merges, drift opens check-report.html; intended changes are re-blessed with check --update, real regressions get fixed and re-checked"/>
+
+Details in **[`docs/pipeline.md`](docs/pipeline.md)**.
 
 ## Why shotlist, and not the others
 
@@ -139,17 +143,11 @@ needs nothing.)
 
 ## How it works
 
-```
-.shotlist.yaml ─► load + validate ─► [ boot app, wait until ready ] ─► one engine
-                                                                        routes each
-                                                                        shot by kind:
-        web ───────► Playwright / Chromium
-        cli·native ► a real Terminal.app window
-        cli·render ► PTY → ANSI→HTML → Chromium
-        session ───► one persistent Terminal, a shot per step
-                                                                      ─► NN-name.png
-                                                                         + README splice
-```
+One deterministic engine: load and validate the shot list, boot your app and wait
+until it's *actually* ready, then route every shot to the right backend — and tear
+everything down afterwards, even on a crash:
+
+<img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/diagrams/shot-routing.png" width="100%" alt="Flow diagram: the engine routes each shot by kind — web goes to Playwright/Chromium; cli goes to a rendered terminal card (PTY, scrub, ANSI to HTML, Chromium) or a real Terminal.app window depending on style; session drives one persistent Terminal window — all paths produce PNG bytes written as NN-name.png"/>
 
 The clever part is what *isn't* here: **no AI runs at capture time.** Claude's only
 job is to *author* the `.shotlist.yaml` once by reading your repo; after that the

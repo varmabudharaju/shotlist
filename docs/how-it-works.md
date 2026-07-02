@@ -5,7 +5,8 @@ page walks the whole machine end to end — what runs, in what order, and why th
 same config keeps producing the same pixels. If you only remember one thing:
 **there is no magic at capture time.** The engine is a plain, deterministic
 program; every arrow below is ordinary code you can read in
-[`src/shotlist/`](../src/shotlist/).
+[`src/shotlist/`](../src/shotlist/). Diagrams are committed PNGs (rendered from
+the Mermaid source tucked under each one).
 
 ## The big picture
 
@@ -13,8 +14,13 @@ One run: load the config, boot your app (if any), wait until it is *actually*
 ready, route every shot to the right backend, write numbered PNGs plus the run
 artifacts, and tear everything down — even on failure.
 
+<img src="diagrams/run-pipeline.png" alt="Flow: .shotlist.yaml is loaded and validated; if an app is configured it boots in its own process group and a readiness probe gates capture; the engine routes each shot by kind, writes outputs, and always tears everything down"/>
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
-flowchart LR
+flowchart TD
     Y[".shotlist.yaml<br/>(committed)"] --> L["load + validate<br/>config.py"]
     L --> A{"app:<br/>configured?"}
     A -- yes --> B["boot app in its own<br/>process group<br/>lifecycle.py"]
@@ -24,6 +30,8 @@ flowchart LR
     E --> O["outputs<br/>output.py + report.py"]
     O --> T["teardown: browser closed,<br/>app process group killed<br/>(always, even on crash)"]
 ```
+
+</details>
 
 Three properties make this dependable:
 
@@ -42,6 +50,11 @@ The engine looks at each shot's `kind` (and, for CLI shots, its `style`) and
 routes it to one of three backends. Chromium is launched once, and only if some
 shot actually needs it.
 
+<img src="diagrams/shot-routing.png" width="100%" alt="Decision tree: each shot routes by kind — web to Playwright, cli to the rendered terminal card or a real Terminal.app window depending on style, session to one persistent Terminal — all producing PNG bytes for the Writer"/>
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     E["engine.py<br/>for each shot"] --> K{"kind?"}
@@ -56,6 +69,8 @@ flowchart TD
     SS --> P
     P --> WR["output.Writer<br/>NN-name.png"]
 ```
+
+</details>
 
 Why two CLI styles exist:
 
@@ -73,6 +88,11 @@ step, and every step yields its own numbered screenshot.
 
 The same flow as a sequence — useful when you want to know *when* things happen
 (and what gets cleaned up when something fails):
+
+<img src="diagrams/run-sequence.png" width="100%" alt="Sequence: shotlist run loads the config, spawns your app, polls readiness, launches Chromium once, captures every shot, splices README and evidence, writes manifest and gallery, then closes the browser and kills the app process group"/>
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -98,6 +118,8 @@ sequenceDiagram
     C->>X: close browser (finally)
     C->>A: kill process group (finally)
 ```
+
+</details>
 
 ## What lands on disk
 
@@ -127,6 +149,11 @@ a temp directory (never touching your committed files) and compare against the
 committed manifest. The comparison is cheap-first: an equal hash short-circuits;
 only a hash mismatch pays for pixel decoding.
 
+<img src="diagrams/check-decision.png" alt="Decision tree: equal sha256 short-circuits to unchanged; otherwise a pixel diff runs — size changes are always drift, a changed-pixel ratio within tolerance is unchanged, anything above is changed, exits 1 and renders the check report"/>
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     S["for each deterministic shot<br/>(web, cli rendered — native is skipped)"] --> H{"sha256 equals<br/>baseline?"}
@@ -143,7 +170,14 @@ flowchart TD
     UT --> X0
 ```
 
+</details>
+
 And the human workflow around it:
+
+<img src="diagrams/drift-workflow.png" width="100%" alt="Loop: run creates the baseline, PNGs and manifest are committed, CI checks every PR; no drift merges, drift opens check-report.html — intended changes are re-blessed with --update, regressions get fixed and re-checked"/>
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 flowchart LR
@@ -156,6 +190,8 @@ flowchart LR
     V -- a real regression --> FX["fix the UI,<br/>re-run check"]
     FX --> CI
 ```
+
+</details>
 
 Two refinements keep this honest rather than noisy:
 
