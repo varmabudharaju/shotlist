@@ -31,10 +31,11 @@ inputs:
   github-token:
     description: >-
       Token used to post the PR comment. Needs `pull-requests: write` (comments
-      ride the issues API, so `issues: write` also works). Defaults to the
-      workflow's automatic `${{ github.token }}`.
+      ride the issues API, so `issues: write` also works). When empty, falls
+      back to the workflow's automatic `github.token` (contexts aren't allowed
+      in action input defaults, so the fallback happens in the step).
     required: false
-    default: ${{ github.token }}
+    default: ""
 
 runs:
   using: "composite"
@@ -156,7 +157,8 @@ runs:
         # Confine every GitHub-context interpolation to this env block so the run
         # script never splices untrusted values into shell. The token rides in as
         # GH_TOKEN, which `gh` reads automatically.
-        GH_TOKEN: ${{ inputs.github-token }}
+        # `github.token` isn't a legal input default, so the fallback lives here.
+        GH_TOKEN: ${{ inputs.github-token || github.token }}
         REPO: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
