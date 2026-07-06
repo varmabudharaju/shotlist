@@ -255,13 +255,29 @@ def test_is_deterministic_by_kind_and_style() -> None:
         _is_deterministic(CliShot(name="c", kind="cli", command="x", style="native"))
         is False
     )
+    # style pinned both ways: the platform default differs (native on macOS,
+    # rendered on Linux), so an unpinned assertion flips per CI leg.
     assert (
         _is_deterministic(
             SessionShot(
-                name="s", kind="session", steps=[SessionStep(name="a", command="x")]
+                name="s",
+                kind="session",
+                style="native",
+                steps=[SessionStep(name="a", command="x")],
             )
         )
         is False
+    )
+    assert (
+        _is_deterministic(
+            SessionShot(
+                name="s",
+                kind="session",
+                style="rendered",
+                steps=[SessionStep(name="a", command="x")],
+            )
+        )
+        is True
     )
 
 
