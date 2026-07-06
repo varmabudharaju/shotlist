@@ -440,3 +440,85 @@ def test_check_json_reports_environment_mismatch(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output.strip())
     assert any(entry.startswith("python: 0.0.0 ->") for entry in payload["environment_mismatch"])
+
+
+def _boom_terminal(command: str, cwd: str, cols: int, rows: int) -> bytes:
+    raise RuntimeError("terminal exploded")
+
+
+def test_run_failing_shot_exits_clean(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # One failing shot aborts the run with a single clean line — never a traceback.
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _boom_terminal)
+    target = tmp_path / ".shotlist.yaml"
+    target.write_text(_NATIVE_CONFIG)
+
+    result = invoke_run(["run", "--config", str(target)])
+
+    assert result.exit_code == 1, result.output
+    assert "shot 'greet' failed: terminal exploded" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_run_keep_going_reports_each_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def selective(command: str, cwd: str, cols: int, rows: int) -> bytes:
+        if "boom" in command:
+            raise RuntimeError("kaboom")
+        return b"\x89PNG\r\n\x1a\nX"
+
+    monkeypatch.setattr("shotlist.engine.capture_terminal", selective)
+    target = tmp_path / ".shotlist.yaml"
+    target.write_text(
+        "output:\n  dir: shots\n"
+        "shots:\n"
+        "  - { name: ok, kind: cli, command: echo hi, style: native }\n"
+        "  - { name: bad, kind: cli, command: echo boom, style: native }\n"
+    )
+
+    result = invoke_run(["run", "--keep-going", "--config", str(target)])
+
+    assert result.exit_code == 1, result.output
+    assert "ok -> " in result.output
+    assert "✗ bad  failed (kaboom)" in result.output
+    assert "captured 1 shot(s), 1 failed" in result.output
+    assert (tmp_path / "shots" / "01-ok.png").exists()
+    assert "Traceback" not in result.output
+
+
+def test_run_unknown_only_exits_clean(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    target = tmp_path / ".shotlist.yaml"
+    target.write_text(_NATIVE_CONFIG)
+
+    result = invoke_run(["run", "--only", "nope", "--config", str(target)])
+
+    assert result.exit_code == 1, result.output
+    assert "unknown shot names" in result.output
+    assert "nope" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_check_failing_recapture_exits_clean(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A failing recapture during `check` must surface one clean line, not a
+    # chained traceback: CaptureError is in check's except tuple.
+    box = {"fail": False}
+
+    def capture(page: Any, shot: Any) -> bytes:
+        if box["fail"]:
+            raise RuntimeError("render exploded")
+        return b"\x89PNG\r\n\x1a\nA"
+
+    monkeypatch.setattr("shotlist.engine.capture_web", capture)
+    target = tmp_path / ".shotlist.yaml"
+    target.write_text(_WEB_CONFIG)
+
+    assert invoke_run(["check", "--update", "--config", str(target)]).exit_code == 0
+    box["fail"] = True
+    result = invoke_run(["check", "--config", str(target)])
+
+    assert result.exit_code == 1, result.output
+    assert "shot 'home' failed: render exploded" in result.output
+    assert "Traceback" not in result.output
