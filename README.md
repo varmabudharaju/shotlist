@@ -199,6 +199,14 @@ on its own [`.shotlist.yaml`](.shotlist.yaml) and spliced in automatically.
 
 <img src="docs/screenshots/02-run-options.png" width="100%" alt="shotlist run options: --config, --only, and --version"/>
 
+### session export
+
+<img src="docs/screenshots/03-session-export.png" width="100%" alt="Step 1: set a variable in the session shell"/>
+
+### session echo
+
+<img src="docs/screenshots/04-session-echo.png" width="100%" alt="Step 2: a later command sees it — one persistent shell"/>
+
 <!-- shotlist:end -->
 
 ## Use with Claude

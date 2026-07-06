@@ -5,6 +5,7 @@ output:
   readme: README.md
   title: shotlist CLI
   evidence: docs/test-evidence.md
+  optimize: true       # losslessly re-encode every baseline PNG so committed shots stay small
 
 # Allow a hair of pixel noise before a rendered-CLI shot counts as drift, so a
 # harmless anti-aliasing wobble across machines doesn't fail `shotlist check`.
@@ -33,3 +34,16 @@ shots:
     rows: 20
     style: rendered      # a portable, headless-friendly terminal card
     alt: "shotlist run options: --config, --only, and --version"
+
+  - name: stateful-session
+    kind: session
+    style: rendered      # one persistent Chromium-rendered shell, drift-checkable
+    cols: 90
+    clear_between: true
+    steps:
+      - name: session-export
+        command: "export GREETING='state carries across steps'"
+        alt: "Step 1: set a variable in the session shell"
+      - name: session-echo
+        command: "echo $GREETING"
+        alt: "Step 2: a later command sees it — one persistent shell"

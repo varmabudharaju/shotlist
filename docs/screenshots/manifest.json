@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
-  "generated_at": "2026-07-01T23:50:48Z",
+  "generated_at": "2026-07-06T23:48:27Z",
   "config": ".shotlist.yaml",
-  "shot_count": 2,
+  "shot_count": 4,
   "shots": [
     {
       "index": 1,
@@ -10,8 +10,8 @@
       "kind": "cli",
       "alt": "shotlist --help showing the init, validate, run, and check commands",
       "file": "01-the-shotlist-cli.png",
-      "bytes": 42860,
-      "sha256": "ff053f26bc5bb88c1fe0049cba579c193c17e581fc5edba1113f0008fc516f58",
+      "bytes": 43236,
+      "sha256": "20e31b71e906ab26ac83c0c9dbb226e8dba4f8dfddd755efb13a22114207c3ed",
       "deterministic": true,
       "source": ".venv/bin/shotlist --help"
     },
@@ -21,18 +21,40 @@
       "kind": "cli",
       "alt": "shotlist run options: --config, --only, and --version",
       "file": "02-run-options.png",
-      "bytes": 35315,
-      "sha256": "535a3aa12dff786d6d5bb02b5f813ae692d3ac7957aed36dd8b15f42e232aff3",
+      "bytes": 44071,
+      "sha256": "f80de22454bbcd1173d29e26de372d06235f34b1d34435fd3c52ef1165f84252",
       "deterministic": true,
       "source": ".venv/bin/shotlist run --help"
+    },
+    {
+      "index": 3,
+      "name": "session-export",
+      "kind": "session",
+      "alt": "Step 1: set a variable in the session shell",
+      "file": "03-session-export.png",
+      "bytes": 9022,
+      "sha256": "a55404156212ed5c7c4086a68de2c6feff3f6de04ef1a90f443a05627efe26cc",
+      "deterministic": true,
+      "source": "export GREETING='state carries across steps'"
+    },
+    {
+      "index": 4,
+      "name": "session-echo",
+      "kind": "session",
+      "alt": "Step 2: a later command sees it \u2014 one persistent shell",
+      "file": "04-session-echo.png",
+      "bytes": 9389,
+      "sha256": "e9d02ec81109a38ed694962a52a386da0bef6bba9186b5318890381ae5f357a4",
+      "deterministic": true,
+      "source": "echo $GREETING"
     }
   ],
   "environment": {
-    "shotlist": "0.2.0",
+    "shotlist": "0.3.3",
     "python": "3.11.1",
     "platform": "darwin",
-    "playwright": "1.60.0",
-    "chromium": "148.0.7778.96"
+    "playwright": "1.61.0",
+    "chromium": "149.0.7827.55"
   },
-  "git_sha": "c056a80"
+  "git_sha": "42b31c9"
 }
