@@ -177,6 +177,9 @@ class OutputSpec(_Strict):
     report: bool = True  # write manifest.json + index.html gallery alongside the PNGs
     title: str | None = None  # gallery / evidence page title (defaults to "shotlist")
     evidence: str | None = None  # optional path to a captioned test-evidence Markdown doc
+    # Losslessly re-encode every written PNG (Pillow, optimize=True). Opt-in so
+    # existing committed baselines don't all drift on upgrade.
+    optimize: bool = False
 
 
 class CheckSpec(_Strict):
