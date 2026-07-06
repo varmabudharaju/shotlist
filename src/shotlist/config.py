@@ -78,6 +78,9 @@ class WebShot(_Strict):
     # stay reproducible.
     mask: list[str] = Field(default_factory=list)
     alt: str = ""
+    # How many extra times to re-capture this shot if it fails before giving up;
+    # 0 (the default) means a single attempt. A web render is safely repeatable.
+    retries: int = Field(default=0, ge=0, le=5)
 
 
 class ScrubRule(_Strict):
@@ -113,6 +116,9 @@ class CliShot(_Strict):
     # non-deterministic text (rendered style only; see :class:`ScrubRule`).
     scrub: list[ScrubRule] = Field(default_factory=list)
     alt: str = ""
+    # How many extra times to re-capture this shot if it fails before giving up;
+    # 0 (the default) means a single attempt. Re-running a command is repeatable.
+    retries: int = Field(default=0, ge=0, le=5)
 
 
 class SessionStep(_Strict):

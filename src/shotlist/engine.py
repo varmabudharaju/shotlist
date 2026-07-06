@@ -14,6 +14,7 @@ guarantees the browser is closed and the app is stopped even when capture fails.
 """
 
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -32,6 +33,52 @@ Shot = WebShot | CliShot | SessionShot
 # One produced image: (name, alt, kind, png_bytes, source).
 # ``source`` is the URL (web) or command (cli / session step) that produced it.
 Capture = tuple[str, str, str, bytes, str]
+
+
+@dataclass(frozen=True)
+class ShotFailure:
+    """A shot that exhausted its attempts, recorded when ``keep_going`` is set.
+
+    ``kind`` is the shot's declared kind (``web``/``cli``/``session``) and
+    ``error`` is a one-line reason (see :func:`_one_line_error`).
+    """
+
+    name: str
+    kind: str
+    error: str
+
+
+class CaptureError(RuntimeError):
+    """Raised when a shot fails its last attempt and the run is failing fast.
+
+    The message is exactly ``shot '<name>' failed: <one-line reason>``; the
+    original exception is chained (``raise ... from exc``) so the traceback is
+    preserved for anyone who wants it, while the CLI can print just the message.
+    """
+
+
+@dataclass(frozen=True)
+class RunOutcome:
+    """The result of a run: the shots that were written, and any that failed.
+
+    ``failures`` is only ever non-empty when the run was invoked with
+    ``keep_going`` — fail-fast runs raise :class:`CaptureError` instead.
+    """
+
+    results: list[CaptureResult]
+    failures: list[ShotFailure]
+
+
+def _one_line_error(exc: Exception) -> str:
+    """A single-line, user-facing reason for ``exc``.
+
+    Uses the first line of ``str(exc)``; when the exception carries no message
+    (e.g. ``raise RuntimeError``) it falls back to the exception's class name so
+    the reason is never blank.
+    """
+    text = str(exc)
+    first_line = text.splitlines()[0].strip() if text.strip() else ""
+    return first_line or type(exc).__name__
 
 
 def _select_shots(config: Config, only: list[str] | None) -> list[Shot]:
@@ -113,28 +160,68 @@ def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> list[Captur
     return [(shot.name, shot.alt, "cli", capture_cli(page, shot, cwd), shot.command)]
 
 
+def _capture_with_retries(
+    shot: Shot,
+    repo_root: Path,
+    browser: Browser | None,
+) -> list[Capture]:
+    """Capture one shot, retrying up to ``shot.retries`` extra times on failure.
+
+    Total attempts are ``getattr(shot, "retries", 0) + 1`` — the ``getattr`` means
+    session shots (which have no ``retries`` field) naturally get a single attempt.
+    Each attempt gets a FRESH Playwright page (closed in a ``finally``) so a page
+    left in a bad state by a failed attempt never poisons the retry. Only
+    ``Exception`` is caught, so ``KeyboardInterrupt`` still aborts the run; the
+    last attempt's exception is re-raised when every attempt has failed.
+    """
+    attempts = getattr(shot, "retries", 0) + 1
+    last_exc: Exception | None = None
+    for _ in range(attempts):
+        page = browser.new_page() if (browser is not None and _shot_needs_page(shot)) else None
+        try:
+            return _capture_shot(shot, repo_root, page)
+        except Exception as exc:  # noqa: BLE001 - retried, then surfaced to the caller
+            last_exc = exc
+        finally:
+            if page is not None:
+                page.close()
+    assert last_exc is not None  # attempts >= 1, so a failure was recorded
+    raise last_exc
+
+
 def _capture_all(
     selected: list[Shot],
     repo_root: Path,
     writer: Writer,
     browser: Browser | None,
-) -> list[CaptureResult]:
+    keep_going: bool = False,
+) -> RunOutcome:
+    """Capture every selected shot, writing each to a contiguously-numbered file.
+
+    A shot that exhausts its attempts either aborts the run with a
+    :class:`CaptureError` (``keep_going`` off) or is recorded as a
+    :class:`ShotFailure` and skipped (``keep_going`` on). A failed shot consumes
+    no index, so successful shots stay numbered ``01, 02, ...`` with no gaps.
+    """
     results: list[CaptureResult] = []
+    failures: list[ShotFailure] = []
     index = 0
     for shot in selected:
-        page = browser.new_page() if (browser is not None and _shot_needs_page(shot)) else None
         try:
-            captures = _capture_shot(shot, repo_root, page)
-        finally:
-            if page is not None:
-                page.close()
+            captures = _capture_with_retries(shot, repo_root, browser)
+        except Exception as exc:  # noqa: BLE001 - reported cleanly, never as a traceback
+            reason = _one_line_error(exc)
+            if not keep_going:
+                raise CaptureError(f"shot '{shot.name}' failed: {reason}") from exc
+            failures.append(ShotFailure(name=shot.name, kind=shot.kind, error=reason))
+            continue
         deterministic = _is_deterministic(shot)
         for name, alt, kind, data, source in captures:
             index += 1
             results.append(
                 writer.write(index, name, data, alt, kind, deterministic, source)
             )
-    return results
+    return RunOutcome(results=results, failures=failures)
 
 
 def run(
@@ -142,8 +229,9 @@ def run(
     repo_root: Path,
     only: list[str] | None = None,
     config_path: str | None = None,
-) -> list[CaptureResult]:
-    """Capture the configured shots and return their on-disk results.
+    keep_going: bool = False,
+) -> RunOutcome:
+    """Capture the configured shots and return a :class:`RunOutcome`.
 
     Boots ``config.app`` when present (waiting on ``ready`` if given), captures
     each selected shot to ``NN-name.png`` via :class:`~shotlist.output.Writer`
@@ -153,10 +241,16 @@ def run(
     (when configured) plus a ``manifest.json`` (stamped with per-shot sources, the
     run environment, and the git SHA) and an ``index.html`` gallery. The browser
     (when used) and the app are always torn down.
+
+    Each shot may fail its attempts (``shot.retries`` + 1). With ``keep_going``
+    off the first such failure aborts with a :class:`CaptureError`; with it on the
+    failure is collected into ``RunOutcome.failures`` and the run continues, and
+    every artifact (README splice, evidence, manifest, gallery) is written from
+    the successful results only.
     """
     selected = _select_shots(config, only)
     writer = Writer(config.output, repo_root)
-    results: list[CaptureResult] = []
+    outcome = RunOutcome(results=[], failures=[])
     chromium_version: str | None = None
 
     app: AppProcess | None = None
@@ -176,15 +270,16 @@ def run(
                 browser = playwright.chromium.launch()
                 chromium_version = browser.version
                 try:
-                    results = _capture_all(selected, repo_root, writer, browser)
+                    outcome = _capture_all(selected, repo_root, writer, browser, keep_going)
                 finally:
                     browser.close()
         else:
-            results = _capture_all(selected, repo_root, writer, None)
+            outcome = _capture_all(selected, repo_root, writer, None, keep_going)
     finally:
         if app is not None:
             app.stop()
 
+    results = outcome.results
     generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     title = config.output.title or "shotlist"
 
@@ -213,4 +308,4 @@ def run(
             repo_root=repo_root,
         )
 
-    return results
+    return outcome

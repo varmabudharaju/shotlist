@@ -21,7 +21,7 @@ from shotlist import config as config_module
 from shotlist import engine
 from shotlist.check import CheckResult, compare_environments, compare_manifests
 from shotlist.diff import CHECK_REPORT_NAME, ReportRow, diff_images, render_check_report
-from shotlist.engine import _is_deterministic
+from shotlist.engine import CaptureError, _is_deterministic
 from shotlist.lifecycle import ReadinessError
 from shotlist.output import CaptureResult, Writer, slugify
 from shotlist.report import MANIFEST_NAME, Manifest, build_manifest, collect_environment
@@ -117,6 +117,11 @@ def run(
         "--report/--no-report",
         help="Write manifest.json + index.html beside the shots (default: on).",
     ),
+    keep_going: bool = typer.Option(
+        False,
+        "--keep-going",
+        help="Continue past a failed shot; report all failures at the end.",
+    ),
 ) -> None:
     """Capture all configured shots (filter with --only)."""
     try:
@@ -126,14 +131,25 @@ def run(
         if report is not None:
             cfg.output.report = report
         repo_root = Path(config).resolve().parent
-        results = engine.run(cfg, repo_root, only or None, config_path=config)
-    except (config_module.ConfigError, ReadinessError) as exc:
+        outcome = engine.run(
+            cfg, repo_root, only or None, config_path=config, keep_going=keep_going
+        )
+    except (config_module.ConfigError, ReadinessError, CaptureError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from exc
+    except ValueError as exc:
+        # An unknown --only name (raised by engine._select_shots): report cleanly.
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
 
-    for result in results:
+    for result in outcome.results:
         typer.echo(f"{result.name} -> {result.src}")
-    typer.echo(f"captured {len(results)} shot(s)")
+    for failure in outcome.failures:
+        typer.echo(f"✗ {failure.name}  failed ({failure.error})")
+    if outcome.failures:
+        typer.echo(f"captured {len(outcome.results)} shot(s), {len(outcome.failures)} failed")
+        raise typer.Exit(1)
+    typer.echo(f"captured {len(outcome.results)} shot(s)")
 
 
 _CHECK_SYMBOLS = {
@@ -328,7 +344,7 @@ def _selective_update(
     with tempfile.TemporaryDirectory() as tmp:
         results = engine.run(
             _recapture_probe(cfg, tmp), repo_root, only=list(only), config_path=config_path
-        )
+        ).results
         current_by_name = {result.name: result for result in results}
         for name in only:
             data = current_by_name[name].path.read_bytes()
@@ -420,7 +436,7 @@ def check(
             with tempfile.TemporaryDirectory() as tmp:
                 results = engine.run(
                     _recapture_probe(cfg, tmp), repo_root, only=checkable, config_path=config
-                )
+                ).results
                 current = build_manifest(results, generated_at="", config=config)
                 current_by_name = {result.name: result for result in results}
                 base_by_name = {shot["name"]: shot for shot in baseline["shots"]}
@@ -448,6 +464,7 @@ def check(
             _print_human_report(result, env_mismatches, diff_files, diff_dir)
         if result.drifted:
             raise typer.Exit(1)
-    except (config_module.ConfigError, ReadinessError) as exc:
+    except (config_module.ConfigError, ReadinessError, CaptureError) as exc:
+        # A failing recapture now raises CaptureError; report one clean line.
         human(str(exc))
         raise typer.Exit(1) from exc
