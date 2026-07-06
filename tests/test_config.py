@@ -280,6 +280,68 @@ def test_session_step_name_collision_rejected(tmp_path: Path) -> None:
         )
 
 
+def test_web_and_cli_shots_default_retries_to_zero(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            """
+            shots:
+              - { name: home, kind: web, url: http://x }
+              - { name: help, kind: cli, command: "echo hi" }
+            """,
+        )
+    )
+    web, cli = cfg.shots
+    assert isinstance(web, WebShot)
+    assert isinstance(cli, CliShot)
+    assert web.retries == 0
+    assert cli.retries == 0
+
+
+def test_retries_field_parses_on_web_and_cli(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            """
+            shots:
+              - { name: home, kind: web, url: http://x, retries: 3 }
+              - { name: help, kind: cli, command: "echo hi", retries: 1 }
+            """,
+        )
+    )
+    web, cli = cfg.shots
+    assert isinstance(web, WebShot)
+    assert isinstance(cli, CliShot)
+    assert web.retries == 3
+    assert cli.retries == 1
+
+
+def test_retries_rejects_values_out_of_range(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError):
+        load(write(tmp_path, "shots:\n  - { name: a, kind: web, url: http://x, retries: 6 }\n"))
+    with pytest.raises(ConfigError):
+        load(write(tmp_path, "shots:\n  - { name: a, kind: web, url: http://x, retries: -1 }\n"))
+
+
+def test_session_shot_rejects_retries_field(tmp_path: Path) -> None:
+    # Stateful native sessions aren't safely re-runnable, so `retries` is not a
+    # SessionShot field; the strict model must reject it.
+    with pytest.raises(ConfigError):
+        load(
+            write(
+                tmp_path,
+                """
+                shots:
+                  - name: flow
+                    kind: session
+                    retries: 2
+                    steps:
+                      - { name: a, command: "echo x" }
+                """,
+            )
+        )
+
+
 def test_invalid_yaml_raises_configerror(tmp_path: Path) -> None:
     with pytest.raises(ConfigError):
         load(write(tmp_path, "shots: [unclosed\n"))
