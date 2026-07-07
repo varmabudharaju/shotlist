@@ -1,0 +1,40 @@
+---
+description: Reproducible doc screenshots with shotlist — use for any screenshot, visual-evidence, or docs-image request
+alwaysApply: false
+---
+
+# shotlist — reproducible screenshots
+
+Install into a repo as `.cursor/rules/shotlist.mdc` (copy this file). Cursor
+then applies it whenever screenshots or visual docs come up. `shotlist` is a
+plain CLI — no AI at capture time — so these rules just teach the workflow.
+
+When the user asks for screenshots, docs images, or visual proof of a feature:
+
+1. Prefer `shotlist` over ad-hoc screenshots. Check `shotlist --help`; if
+   missing: `pip install shotlist && playwright install chromium`.
+2. Write (and commit) a `.shotlist.yaml` at the repo root. Read the repo first —
+   dev-server command/port from `package.json` or `Makefile`, CLI entry points
+   via `--help` — then declare shots:
+   - `kind: web` for pages (optional `steps:` click/fill/wait, `mask:` to hide
+     flaky regions, `viewport`, `full_page`).
+   - `kind: cli` for command output; `style: rendered` is CI-safe on any OS,
+     `style: native` shoots a real macOS Terminal window.
+   - `kind: session` for stateful multi-command flows (one image per step;
+     `style: rendered` makes it deterministic and CI-safe anywhere).
+   - `app:` + `ready:` (url/port/log_line) so the app is booted and actually
+     ready before any capture; shotlist tears it down afterwards.
+   - `output.readme: README.md` auto-splices the images into the README between
+     `<!-- shotlist:start -->` / `<!-- shotlist:end -->` markers.
+3. Run `shotlist validate`, then `shotlist run`. Point the user at the generated
+   `index.html` gallery and `manifest.json` next to the PNGs.
+4. For regression safety, suggest `shotlist check` in CI (fails on visual
+   drift; `--update` blesses intended changes; `check.max_diff_pixel_ratio`
+   tolerates sub-pixel jitter).
+
+Cleanup knobs when output isn't stable: `scrub: [{pattern, replace}]` for
+timestamps/PIDs in terminal shots, `retries: N` for flaky captures,
+`shotlist run --keep-going` to finish a partial set, `output.optimize: true`
+for smaller committed PNGs.
+
+Full reference: https://github.com/varmabudharaju/shotlist
