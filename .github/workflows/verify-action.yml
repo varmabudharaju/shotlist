@@ -41,6 +41,12 @@ jobs:
 
   verify-source:
     runs-on: ubuntu-latest
+    # Dogfood the action's opt-in sticky PR comment on this repo's own PRs. A
+    # permissions block scopes the token down, so it must re-grant checkout's
+    # `contents: read` alongside the `pull-requests: write` the comment needs.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +68,7 @@ jobs:
           config: .github/ci-demo/.shotlist.yaml
           package: "-e ."
           diff-dir: shotlist-diffs
+          pr-comment: true
 
       - uses: actions/upload-artifact@v4
         if: always()

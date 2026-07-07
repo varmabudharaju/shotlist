@@ -24,6 +24,18 @@ inputs:
     description: "Directory where 'check' writes per-shot diff PNGs and the HTML report."
     required: false
     default: "shotlist-diffs"
+  pr-comment:
+    description: "Post/update a sticky PR comment with the check summary (pull_request events only)."
+    required: false
+    default: "false"
+  github-token:
+    description: >-
+      Token used to post the PR comment. Needs `pull-requests: write` (comments
+      ride the issues API, so `issues: write` also works). When empty, falls
+      back to the workflow's automatic `github.token` (contexts aren't allowed
+      in action input defaults, so the fallback happens in the step).
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -131,3 +143,135 @@ runs:
           ${{ inputs.diff-dir }}
           shotlist-check.json
         if-no-files-found: ignore
+
+    - name: Sticky PR comment
+      # Opt-in, best-effort comment mirroring the step summary onto the pull
+      # request itself. This step must NEVER be the reason a job fails: the check
+      # step already re-exited with its own code (the job's real verdict), and a
+      # PR from a fork carries a read-only GITHUB_TOKEN that simply cannot
+      # comment. So `set +e` stays on, every network call degrades to a
+      # `::warning::`, and the step ends with an explicit `exit 0`.
+      if: always() && inputs.command == 'check' && inputs.pr-comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        # Confine every GitHub-context interpolation to this env block so the run
+        # script never splices untrusted values into shell. The token rides in as
+        # GH_TOKEN, which `gh` reads automatically.
+        # `github.token` isn't a legal input default, so the fallback lives here.
+        GH_TOKEN: ${{ inputs.github-token || github.token }}
+        REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set +e
+
+        # Render the comment body from the Contract-B JSON with the runner's
+        # python3 (no jq dependency). The FIRST line is the sticky marker: later
+        # runs find and update this same comment by matching that exact prefix.
+        # Untrusted shot names/reasons flow JSON -> python -> body file and never
+        # touch the shell. Tolerates a missing or empty report.
+        body_file="$(mktemp)"
+        python3 > "${body_file}" <<'PY'
+        import json
+        import os
+
+        path = "shotlist-check.json"
+        data = None
+        try:
+            with open(path, encoding="utf-8") as fh:
+                raw = fh.read().strip()
+            if raw:
+                data = json.loads(raw)
+        except (OSError, ValueError):
+            data = None
+
+        # The marker MUST be the first line — the PATCH-else-POST logic below
+        # identifies our previous comment by this exact prefix.
+        lines = ["<!-- shotlist-check -->", "## shotlist check", ""]
+        if not isinstance(data, dict):
+            lines.append(
+                "_No check report was produced "
+                "(missing or empty `shotlist-check.json`)._"
+            )
+        else:
+            if data.get("drifted"):
+                lines.append("**Result:** drift detected :warning:")
+            else:
+                lines.append("**Result:** no drift :white_check_mark:")
+            lines.append("")
+
+            mismatch = data.get("environment_mismatch") or []
+            if mismatch:
+                lines.append("### Environment mismatch")
+                lines.extend(f"- `{item}`" for item in mismatch)
+                lines.append("")
+
+            shots = data.get("shots") or []
+            if shots:
+                lines.append("| shot | status | detail |")
+                lines.append("| --- | --- | --- |")
+                for shot in shots:
+                    name = str(shot.get("name", "?"))
+                    status = str(shot.get("status", "?"))
+                    detail = shot.get("reason")
+                    if not detail:
+                        ratio = shot.get("changed_pixel_ratio")
+                        detail = f"{ratio:.4%}" if isinstance(ratio, (int, float)) else ""
+                    lines.append(f"| {name} | {status} | {detail} |")
+                lines.append("")
+
+        # Diff PNGs can't be inlined in a comment without external hosting, so we
+        # link the run page where the `shotlist-check-*` artifact is attached.
+        run_url = os.environ.get("RUN_URL", "")
+        lines.append(
+            "Diff images and the full JSON report are attached to "
+            f"[this workflow run]({run_url}) as the `shotlist-check-*` build artifact."
+        )
+
+        print("\n".join(lines))
+        PY
+
+        # Sticky update: find the first existing comment whose body starts with
+        # the marker. --paginate merges every comment page into a single JSON
+        # array, saved to a temp file so the already-required python3 can filter
+        # it (still no jq). A failed/empty listing just yields no id -> we create.
+        comments_file="$(mktemp)"
+        gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+          > "${comments_file}" 2>/dev/null
+        comment_id="$(COMMENTS_FILE="${comments_file}" python3 <<'PY'
+        import json
+        import os
+
+        marker = "<!-- shotlist-check -->"
+        try:
+            with open(os.environ["COMMENTS_FILE"], encoding="utf-8") as fh:
+                comments = json.load(fh)
+        except (OSError, ValueError, KeyError):
+            comments = []
+        if not isinstance(comments, list):
+            comments = []
+        for c in comments:
+            if isinstance(c, dict) and str(c.get("body") or "").startswith(marker):
+                print(c["id"])
+                break
+        PY
+        )"
+
+        # Update in place when our comment exists, otherwise create it. The body
+        # rides in via `--field body=@file`, so arbitrary Markdown is never
+        # shell-quoted. Any failure (typically a read-only fork token missing
+        # `pull-requests: write`) degrades to a warning and never fails the job.
+        if [ -n "${comment_id}" ]; then
+          gh api --method PATCH \
+            "repos/${REPO}/issues/comments/${comment_id}" \
+            --field body=@"${body_file}" >/dev/null \
+            || echo "::warning::shotlist: could not update PR comment (missing pull-requests: write permission?)"
+        else
+          gh api --method POST \
+            "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --field body=@"${body_file}" >/dev/null \
+            || echo "::warning::shotlist: could not post PR comment (missing pull-requests: write permission?)"
+        fi
+
+        # This step is advisory only — never let it change the job's verdict.
+        exit 0
