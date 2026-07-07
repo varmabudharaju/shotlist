@@ -1,6 +1,8 @@
+import io
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from shotlist.config import OutputSpec
 from shotlist.output import CaptureResult, Writer, slugify
@@ -53,6 +55,80 @@ def test_write_zero_pads_index(tmp_path: Path) -> None:
     writer = Writer(OutputSpec(dir="shots"), tmp_path)
     result = writer.write(7, "x", b"data", alt="", kind="cli")
     assert result.path.name == "07-x.png"
+
+
+def _rgba_png_bytes() -> bytes:
+    """A tiny RGBA PNG (varied alpha included) for the optimize tests."""
+    image = Image.new("RGBA", (4, 3))
+    pixels = [
+        (255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 128), (10, 20, 30, 0),
+        (255, 255, 255, 255), (0, 0, 0, 255), (127, 127, 127, 200), (5, 5, 5, 5),
+        (1, 2, 3, 4), (6, 7, 8, 9), (250, 240, 230, 220), (100, 150, 200, 250),
+    ]
+    image.putdata(pixels)
+    buf = io.BytesIO()
+    image.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _naively_encoded_screenshot_png_bytes() -> bytes:
+    """A larger, flat-region-heavy PNG saved with low, non-optimal compression.
+
+    Stands in for a raw Chromium screenshot: real UI screenshots have big flat
+    regions, so an unoptimized encode leaves plenty of room for Pillow's
+    optimizer to shrink it losslessly.
+    """
+    image = Image.new("RGB", (200, 150), (13, 17, 23))
+    for x in range(20, 180):
+        for y in range(20, 40):
+            image.putpixel((x, y), (88, 166, 255))
+    buf = io.BytesIO()
+    image.save(buf, "PNG", optimize=False, compress_level=0)
+    return buf.getvalue()
+
+
+def test_write_optimize_false_writes_bytes_verbatim(tmp_path: Path) -> None:
+    # optimize defaults to False: bytes on disk must equal the input exactly.
+    data = _rgba_png_bytes()
+    writer = Writer(OutputSpec(dir="shots"), tmp_path)
+    result = writer.write(1, "x", data, alt="", kind="web")
+    assert result.path.read_bytes() == data
+
+
+def test_write_optimize_true_is_lossless(tmp_path: Path) -> None:
+    data = _rgba_png_bytes()
+    original = Image.open(io.BytesIO(data))
+    original.load()
+
+    writer = Writer(OutputSpec(dir="shots", optimize=True), tmp_path)
+    result = writer.write(1, "x", data, alt="", kind="web")
+
+    written = Image.open(result.path)
+    written.load()
+    assert written.mode == original.mode
+    assert written.size == original.size
+    assert list(written.getdata()) == list(original.getdata())
+
+
+def test_write_optimize_true_is_deterministic(tmp_path: Path) -> None:
+    data = _rgba_png_bytes()
+    writer = Writer(OutputSpec(dir="shots", optimize=True), tmp_path)
+
+    first = writer.write(1, "a", data, alt="", kind="web")
+    second = writer.write(2, "b", data, alt="", kind="web")
+
+    assert first.path.read_bytes() == second.path.read_bytes()
+
+
+def test_write_optimize_true_shrinks_naively_encoded_png(tmp_path: Path) -> None:
+    data = _naively_encoded_screenshot_png_bytes()
+    writer = Writer(OutputSpec(dir="shots", optimize=True), tmp_path)
+
+    result = writer.write(1, "x", data, alt="", kind="web")
+
+    optimized = result.path.read_bytes()
+    assert optimized != data
+    assert len(optimized) < len(data)
 
 
 def test_write_src_falls_back_when_outside_repo_root(tmp_path: Path) -> None:

@@ -7,10 +7,13 @@ markers, so re-running ``shotlist`` refreshes docs without piling up duplicates.
 """
 
 import html
+import io
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+
+from PIL import Image
 
 from shotlist.config import OutputSpec
 
@@ -20,6 +23,22 @@ _END_MARKER = "<!-- shotlist:end -->"
 _SLUG_SEP = re.compile(r"[\s_]+")
 _SLUG_DROP = re.compile(r"[^a-z0-9-]+")
 _SLUG_COLLAPSE = re.compile(r"-+")
+
+
+def _optimize_png(data: bytes) -> bytes:
+    """Losslessly re-encode a PNG, letting Pillow's optimizer shrink it.
+
+    Decodes ``data`` and re-saves it as PNG with ``optimize=True``: pixel data
+    and mode are preserved exactly (no quantizing, no mode conversion), only
+    the compression/filtering — and any ancillary chunks, which are dropped —
+    change. Pillow's PNG optimizer is deterministic, so the same input always
+    yields the same output bytes.
+    """
+    image = Image.open(io.BytesIO(data))
+    image.load()
+    buf = io.BytesIO()
+    image.save(buf, "PNG", optimize=True)
+    return buf.getvalue()
 
 
 def slugify(name: str) -> str:
@@ -86,12 +105,17 @@ class Writer:
 
         ``source`` is the URL or command that produced the shot; it is carried
         through onto the returned :class:`CaptureResult` for the manifest and
-        gallery. It defaults to ``""`` so existing callers keep working.
+        gallery. It defaults to ``""`` so existing callers keep working. When
+        ``output.optimize`` is set, ``data`` is losslessly re-encoded via
+        :func:`_optimize_png` before it is written; otherwise the bytes hit disk
+        verbatim.
         """
         target = self.target_dir()
         target.mkdir(parents=True, exist_ok=True)
         filename = f"{index:02d}-{slugify(name)}.png"
         path = target / filename
+        if self.output.optimize:
+            data = _optimize_png(data)
         path.write_bytes(data)
         try:
             src = path.relative_to(self.repo_root).as_posix()

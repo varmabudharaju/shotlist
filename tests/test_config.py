@@ -36,6 +36,56 @@ def test_load_minimal_web(tmp_path: Path) -> None:
     assert cfg.app is None
 
 
+def test_output_optimize_defaults_false(tmp_path: Path) -> None:
+    cfg = load(write(tmp_path, "shots:\n  - { name: a, kind: web, url: http://x }\n"))
+    assert cfg.output.optimize is False
+
+
+def test_output_optimize_parses_true(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            """
+            output:
+              optimize: true
+            shots:
+              - { name: a, kind: web, url: http://x }
+            """,
+        )
+    )
+    assert cfg.output.optimize is True
+
+
+def test_output_optimize_rejects_non_bool(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError):
+        load(
+            write(
+                tmp_path,
+                """
+                output:
+                  optimize: [1, 2]
+                shots:
+                  - { name: a, kind: web, url: http://x }
+                """,
+            )
+        )
+
+
+def test_output_optimize_typo_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError):
+        load(
+            write(
+                tmp_path,
+                """
+                output:
+                  optimise: true
+                shots:
+                  - { name: a, kind: web, url: http://x }
+                """,
+            )
+        )
+
+
 def test_load_cli_shot(tmp_path: Path) -> None:
     cfg = load(
         write(
