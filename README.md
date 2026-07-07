@@ -15,12 +15,13 @@ regenerates them all with a single command.
 
 - [The problem](#the-problem)
 - [Quickstart](#quickstart)
+- [Features at a glance](#features-at-a-glance)
 - [One shot list, four kinds of shot](#one-shot-list-four-kinds-of-shot)
 - [Use cases](#use-cases)
 - [Proof reports & pipelines](#proof-reports--pipelines)
 - [Why shotlist, and not the others](#why-shotlist-and-not-the-others)
 - [How it works](#how-it-works)
-- [Use with Claude](#use-with-claude)
+- [Works with any AI agent — or none](#works-with-any-ai-agent--or-none)
 - [Commands](#commands)
 - [Develop](#develop)
 
@@ -44,6 +45,29 @@ playwright install chromium      # one-time browser download
 shotlist init        # writes a starter .shotlist.yaml
 shotlist run         # boots your app, captures every shot, tears it all down
 ```
+
+## Features at a glance
+
+Everything is driven by one committed `.shotlist.yaml`; each row links to the
+docs that go deeper.
+
+| You want to… | Use | Where it's explained |
+| --- | --- | --- |
+| Screenshot a web page (after clicks/fills/waits) | `kind: web` + `steps:` | [four kinds of shot](#one-shot-list-four-kinds-of-shot) |
+| Screenshot your *real* Terminal.app window | `kind: cli` (`style: native`, macOS) | [four kinds of shot](#one-shot-list-four-kinds-of-shot) |
+| Terminal shots that run anywhere, incl. CI | `style: rendered` | [four kinds of shot](#one-shot-list-four-kinds-of-shot) |
+| Capture a stateful multi-step flow, one image per step | `kind: session` (add `style: rendered` for CI) | [four kinds of shot](#one-shot-list-four-kinds-of-shot) |
+| Boot the app first and never shoot it half-ready | `app:` + `ready:` (url / port / log line) | [how it works](#how-it-works) |
+| Auto-embed the images in your README | `output.readme: README.md` | [proof reports](#proof-reports--pipelines) |
+| Share a proof gallery / test-evidence doc | `index.html` (automatic), `output.evidence` | [proof reports](#proof-reports--pipelines) |
+| Fail CI when a screenshot drifts | `shotlist check` (+ bundled GitHub Action) | [catch drift](#catch-drift-before-your-users-do), [`docs/pipeline.md`](docs/pipeline.md) |
+| Get the drift verdict as a PR comment | Action input `pr-comment: "true"` | [`docs/pipeline.md`](docs/pipeline.md#pr-comments) |
+| Tolerate sub-pixel rendering jitter | `check.max_diff_pixel_ratio: 0.001` | [`docs/pipeline.md`](docs/pipeline.md#tolerance--checkmax_diff_pixel_ratio) |
+| Hide flaky page regions / scrub timestamps & PIDs | `mask:` (web), `scrub:` (cli & session) | [deterministic by default](#how-it-works) |
+| Re-attempt a flaky capture | `retries: 2` on the shot | [robust by design](#how-it-works) |
+| Finish a partial run instead of dying on one failure | `shotlist run --keep-going` | [robust by design](#how-it-works) |
+| Keep committed PNGs small | `output.optimize: true` (+ Git LFS) | [recipes #9](docs/recipes.md#9-keep-the-repo-lean-git-lfs--optimize) |
+| Keep versioned sets across releases | `shotlist run --version v2` | [`docs/recipes.md`](docs/recipes.md) |
 
 ## One shot list, four kinds of shot
 
@@ -154,10 +178,10 @@ everything down afterwards, even on a crash:
 
 <img src="https://raw.githubusercontent.com/varmabudharaju/shotlist/main/docs/diagrams/shot-routing.png" width="100%" alt="Flow diagram: the engine routes each shot by kind — web goes to Playwright/Chromium; cli goes to a rendered terminal card (PTY, scrub, ANSI to HTML, Chromium) or a real Terminal.app window depending on style; session drives one persistent Terminal window — all paths produce PNG bytes written as NN-name.png"/>
 
-The clever part is what *isn't* here: **no AI runs at capture time.** Claude's only
-job is to *author* the `.shotlist.yaml` once by reading your repo; after that the
-engine is a plain, deterministic program — fast, free, and re-runnable in CI with
-no model in the loop.
+The clever part is what *isn't* here: **no AI runs at capture time.** An AI
+assistant's only job is to *author* the `.shotlist.yaml` once by reading your
+repo; after that the engine is a plain, deterministic program — fast, free, and
+re-runnable in CI with no model (and no tokens) in the loop.
 
 Want the full picture? **[`docs/how-it-works.md`](docs/how-it-works.md)** walks
 every stage with flow diagrams — the run pipeline, how shots route to backends,
@@ -209,14 +233,23 @@ on its own [`.shotlist.yaml`](.shotlist.yaml) and spliced in automatically.
 
 <!-- shotlist:end -->
 
-## Use with Claude
+## Works with any AI agent — or none
 
-`shotlist` ships an optional Claude integration in [`integrations/claude/`](integrations/claude/):
+`shotlist` is **not tied to any AI tool**. The config is plain YAML and the
+engine is a plain CLI, so a human can write the shot list by hand — and any
+coding agent that can run shell commands can author and drive it. Optional
+integrations ship in [`integrations/`](integrations/):
 
-- a **`/shotlist` skill** that inspects your repo (routes, `--help`, README), writes
-  the `.shotlist.yaml` for you, and runs it;
-- an optional **auto-snapshot hook** that drops a raw snapshot when a dev server
-  starts (the honest "dumb snapshot"; the curated set always comes from `shotlist run`).
+| Your tool | Integration | How |
+| --- | --- | --- |
+| **Claude Code** | [`integrations/claude/`](integrations/claude/) | a `/shotlist` skill that inspects the repo, writes the `.shotlist.yaml`, and runs it; plus an optional dev-server auto-snapshot hook |
+| **Codex** (and any `AGENTS.md`-reading agent) | [`integrations/agents/AGENTS.md`](integrations/agents/AGENTS.md) | paste the snippet into your repo's `AGENTS.md` — teaches the same author-validate-run-check workflow |
+| **Cursor** | [`integrations/cursor/shotlist.mdc`](integrations/cursor/shotlist.mdc) | copy to `.cursor/rules/shotlist.mdc` — applied whenever screenshots come up |
+| **No AI** | — | `shotlist init` scaffolds the config; the [recipes](docs/recipes.md) are copy-paste-complete |
+
+Whichever authors the config, the result is identical: capture is deterministic,
+local, and token-free, so `shotlist run`/`check` behave exactly the same from a
+terminal, a CI job, or any agent's shell.
 
 ## Commands
 
