@@ -30,7 +30,15 @@ from shotlist.config import (
     Viewport,
     WebShot,
 )
-from shotlist.engine import _capture_shot, _is_deterministic, _shot_needs_page, run
+from shotlist.engine import (
+    CaptureError,
+    RunOutcome,
+    ShotFailure,
+    _capture_shot,
+    _is_deterministic,
+    _shot_needs_page,
+    run,
+)
 from shotlist.output import CaptureResult
 from tests.conftest import PNG_MAGIC
 
@@ -54,18 +62,24 @@ def _fake_session(
     return [PNG_MAGIC + command.encode() for command, _clear, _wait in steps]
 
 
-def run_engine(
+def run_outcome(
     config: Config,
     repo_root: Path,
     only: list[str] | None = None,
-) -> list[CaptureResult]:
-    """Run :func:`engine.run` on a worker thread so it gets a clean event loop."""
-    results: list[CaptureResult] = []
+    keep_going: bool = False,
+) -> RunOutcome:
+    """Run :func:`engine.run` on a worker thread so it gets a clean event loop.
+
+    The session-scoped ``browser`` fixture keeps a ``sync_playwright`` loop alive,
+    so the engine (which opens its own) must run off the main thread. Any
+    exception is captured and re-raised on the main thread for the test to assert.
+    """
+    box: list[RunOutcome] = []
     error: list[BaseException] = []
 
     def target() -> None:
         try:
-            results.extend(run(config, repo_root, only))
+            box.append(run(config, repo_root, only, keep_going=keep_going))
         except BaseException as exc:  # noqa: BLE001 - re-raised on the main thread
             error.append(exc)
 
@@ -74,7 +88,16 @@ def run_engine(
     thread.join()
     if error:
         raise error[0]
-    return results
+    return box[0]
+
+
+def run_engine(
+    config: Config,
+    repo_root: Path,
+    only: list[str] | None = None,
+) -> list[CaptureResult]:
+    """Run the engine and return just the successful results (legacy helper)."""
+    return run_outcome(config, repo_root, only).results
 
 
 def free_port() -> int:
@@ -467,3 +490,150 @@ def test_run_gallery_uses_config_title(
 
     gallery = (tmp_path / "shots" / "index.html").read_text()
     assert "<h1>Acme Docs screenshots</h1>" in gallery
+
+
+class _FlakyTerminal:
+    """A ``capture_terminal`` stub that fails ``fails`` times, then succeeds.
+
+    Records how many times it was called so retry accounting can be asserted
+    without any real Terminal window or browser.
+    """
+
+    def __init__(self, fails: int) -> None:
+        self.fails = fails
+        self.calls = 0
+
+    def __call__(self, command: str, cwd: str, cols: int, rows: int) -> bytes:
+        self.calls += 1
+        if self.calls <= self.fails:
+            raise RuntimeError(f"terminal boom {self.calls}")
+        return PNG_MAGIC + command.encode()
+
+
+def _native(name: str, command: str, retries: int = 0) -> CliShot:
+    return CliShot(name=name, kind="cli", command=command, style="native", retries=retries)
+
+
+def test_run_returns_run_outcome(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shotlist.engine.capture_terminal", _fake_terminal)
+    config = Config(output=OutputSpec(dir="shots"), app=None, shots=[_native("greet", "echo hi")])
+
+    outcome = run_outcome(config, tmp_path)
+
+    assert isinstance(outcome, RunOutcome)
+    assert [r.name for r in outcome.results] == ["greet"]
+    assert outcome.failures == []
+
+
+def test_retry_succeeds_after_transient_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    flaky = _FlakyTerminal(fails=2)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", flaky)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[_native("greet", "echo hi", retries=2)],
+    )
+
+    outcome = run_outcome(config, tmp_path)
+
+    # attempts = retries(2) + 1, exhausted only 2 failures before the success.
+    assert flaky.calls == 3
+    assert [r.name for r in outcome.results] == ["greet"]
+    assert outcome.failures == []
+    assert (tmp_path / "shots" / "01-greet.png").exists()
+
+
+def test_retry_exhausted_raises_capture_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    flaky = _FlakyTerminal(fails=5)
+    monkeypatch.setattr("shotlist.engine.capture_terminal", flaky)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[_native("greet", "echo hi", retries=1)],
+    )
+
+    with pytest.raises(CaptureError, match=r"shot 'greet' failed: terminal boom 2"):
+        run_outcome(config, tmp_path)
+    # attempts = retries(1) + 1 = 2, no more.
+    assert flaky.calls == 2
+
+
+def test_fail_fast_capture_error_is_one_line_and_chained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(command: str, cwd: str, cols: int, rows: int) -> bytes:
+        raise RuntimeError("line one\nline two")
+
+    monkeypatch.setattr("shotlist.engine.capture_terminal", boom)
+    config = Config(output=OutputSpec(dir="shots"), app=None, shots=[_native("greet", "echo hi")])
+
+    with pytest.raises(CaptureError) as exc_info:
+        run_outcome(config, tmp_path)
+    assert str(exc_info.value) == "shot 'greet' failed: line one"
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+
+
+def test_keep_going_collects_failures_and_stays_contiguous(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def selective(command: str, cwd: str, cols: int, rows: int) -> bytes:
+        if "boom" in command:
+            raise RuntimeError("kaboom")
+        return PNG_MAGIC + command.encode()
+
+    monkeypatch.setattr("shotlist.engine.capture_terminal", selective)
+    config = Config(
+        output=OutputSpec(dir="shots"),
+        app=None,
+        shots=[
+            _native("first", "echo one"),
+            _native("broken", "echo boom"),
+            _native("third", "echo three"),
+        ],
+    )
+
+    outcome = run_outcome(config, tmp_path, keep_going=True)
+
+    assert [r.name for r in outcome.results] == ["first", "third"]
+    assert outcome.failures == [ShotFailure(name="broken", kind="cli", error="kaboom")]
+    # A failed shot consumes no index: numbering stays contiguous (01, 02).
+    assert (tmp_path / "shots" / "01-first.png").exists()
+    assert (tmp_path / "shots" / "02-third.png").exists()
+    assert not (tmp_path / "shots" / "03-third.png").exists()
+    # Partial outputs: manifest is written from the successful results only.
+    manifest = json.loads((tmp_path / "shots" / "manifest.json").read_text())
+    assert manifest["shot_count"] == 2
+    assert [s["name"] for s in manifest["shots"]] == ["first", "third"]
+
+
+def test_keep_going_empty_message_uses_exception_class_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(command: str, cwd: str, cols: int, rows: int) -> bytes:
+        raise RuntimeError
+
+    monkeypatch.setattr("shotlist.engine.capture_terminal", boom)
+    config = Config(output=OutputSpec(dir="shots"), app=None, shots=[_native("greet", "echo hi")])
+
+    outcome = run_outcome(config, tmp_path, keep_going=True)
+
+    assert outcome.results == []
+    assert outcome.failures == [ShotFailure(name="greet", kind="cli", error="RuntimeError")]
+
+
+def test_keyboard_interrupt_is_not_swallowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def interrupt(command: str, cwd: str, cols: int, rows: int) -> bytes:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("shotlist.engine.capture_terminal", interrupt)
+    config = Config(output=OutputSpec(dir="shots"), app=None, shots=[_native("greet", "echo hi")])
+
+    # Even with keep_going, a BaseException like Ctrl-C must propagate.
+    with pytest.raises(KeyboardInterrupt):
+        run_outcome(config, tmp_path, keep_going=True)
