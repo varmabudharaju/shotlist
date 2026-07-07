@@ -22,13 +22,13 @@ jobs:
           python-version: "3.11"
 
       - name: Generate screenshots (shotlist run)
-        uses: varmabudharaju/shotlist@v0.3.3
+        uses: varmabudharaju/shotlist@v0.4.0
         with:
           command: run
           config: .github/ci-demo/.shotlist.yaml
 
       - name: Drift check (shotlist check)
-        uses: varmabudharaju/shotlist@v0.3.3
+        uses: varmabudharaju/shotlist@v0.4.0
         with:
           command: check
           config: .github/ci-demo/.shotlist.yaml

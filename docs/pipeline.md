@@ -200,11 +200,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: varmabudharaju/shotlist@v0.3.3      # `command` defaults to check
+      - uses: varmabudharaju/shotlist@v0.4.0      # `command` defaults to check
 ```
 
 Pass `with: { command: run }` to regenerate instead, or
-`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.3.3` tag when you upgrade.
+`with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.4.0` tag when you upgrade.
 
 More inputs beyond `command`/`config`:
 
@@ -250,7 +250,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: varmabudharaju/shotlist@v0.3.3
+      - uses: varmabudharaju/shotlist@v0.4.0
         with:
           pr-comment: "true"
 ```

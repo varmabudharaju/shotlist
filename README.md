@@ -280,7 +280,7 @@ pytest                       # the suite is fully offline
 CI runs ruff, mypy, and pytest — with an 85% coverage gate — on Ubuntu (Python
 3.11, 3.12) and macOS (Python 3.12), so native Terminal capture stays covered
 too. A separate **`verify-action`** workflow dogfoods the bundled GitHub Action
-on every PR two ways: `verify-release` smoke-tests the shipped `@v0.3.3` action +
+on every PR two ways: `verify-release` smoke-tests the shipped `@v0.4.0` action +
 PyPI package, and `verify-source` runs the PR's own `action.yml` against its own
 source (`package: -e .`) — so a regression in either is caught before it ships.
 Releases publish to PyPI automatically via Trusted Publishing.

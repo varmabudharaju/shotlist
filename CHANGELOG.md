@@ -4,7 +4,7 @@ All notable changes to `shotlist` are documented here. Format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] — 2026-07-07
 
 ### Added
 
@@ -31,6 +31,17 @@ Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
   link to the run page for the `shotlist-check-<job>` artifact. Needs
   `pull-requests: write`; best-effort, so a read-only fork token degrades to a
   workflow warning instead of failing the job.
+- Agent-agnostic integrations: `integrations/agents/AGENTS.md` (a paste-in
+  snippet for Codex and any `AGENTS.md`-reading harness) and
+  `integrations/cursor/shotlist.mdc` (Cursor rules), alongside the existing
+  Claude skill. The README gains a "Features at a glance" table and a "Works
+  with any AI agent — or none" section.
+
+### Changed
+
+- The repo's own `.shotlist.yaml` dogfoods the new surface: `output.optimize:
+  true` and a two-step rendered `session` (the captured cards prove shell state
+  carries across steps) — the committed baseline was regenerated accordingly.
 
 ## [0.3.3] — 2026-07-01
 
