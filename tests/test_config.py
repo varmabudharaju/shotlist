@@ -342,6 +342,54 @@ def test_session_shot_rejects_retries_field(tmp_path: Path) -> None:
         )
 
 
+def test_session_shot_style_and_scrub_defaults(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            'shots:\n  - { name: flow, kind: session,'
+            ' steps: [{ name: a, command: "echo hi" }] }\n',
+        )
+    )
+    shot = cfg.shots[0]
+    assert isinstance(shot, SessionShot)
+    assert shot.style is None
+    assert shot.scrub == []
+
+
+def test_session_shot_rendered_style_and_scrub_parse(tmp_path: Path) -> None:
+    cfg = load(
+        write(
+            tmp_path,
+            """
+            shots:
+              - name: flow
+                kind: session
+                style: rendered
+                scrub:
+                  - { pattern: 'in \\d+\\.\\d+s', replace: 'in X.XXs' }
+                steps:
+                  - { name: a, command: "echo hi" }
+            """,
+        )
+    )
+    shot = cfg.shots[0]
+    assert isinstance(shot, SessionShot)
+    assert shot.style == "rendered"
+    assert len(shot.scrub) == 1
+    assert shot.scrub[0].replace == "in X.XXs"
+
+
+def test_session_shot_invalid_style_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError):
+        load(
+            write(
+                tmp_path,
+                'shots:\n  - { name: flow, kind: session, style: fancy,'
+                ' steps: [{ name: a, command: "echo hi" }] }\n',
+            )
+        )
+
+
 def test_invalid_yaml_raises_configerror(tmp_path: Path) -> None:
     with pytest.raises(ConfigError):
         load(write(tmp_path, "shots: [unclosed\n"))

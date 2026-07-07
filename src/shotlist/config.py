@@ -147,6 +147,14 @@ class SessionShot(_Strict):
     cols: int = 100
     rows: int = 30
     clear_between: bool = True
+    # Like :class:`CliShot`: ``None`` resolves to ``native`` on macOS (a real
+    # Terminal window) and ``rendered`` (a deterministic, Chromium-rendered
+    # terminal card) elsewhere.
+    style: Literal["native", "rendered"] | None = None
+    # Regex substitutions applied to each step's transcript text before it is
+    # rendered, to remove non-deterministic fragments (``rendered`` style only,
+    # ignored for ``native``; see :class:`ScrubRule`).
+    scrub: list[ScrubRule] = Field(default_factory=list)
     steps: list[SessionStep] = Field(min_length=1)
 
 

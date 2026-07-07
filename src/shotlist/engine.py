@@ -20,7 +20,7 @@ from pathlib import Path
 
 from playwright.sync_api import Browser, Page, sync_playwright
 
-from shotlist.backends.cli import capture_cli
+from shotlist.backends.cli import capture_cli, capture_cli_session
 from shotlist.backends.native_terminal import capture_terminal, capture_terminal_session
 from shotlist.backends.web import capture_web
 from shotlist.config import CliShot, Config, SessionShot, WebShot
@@ -97,8 +97,8 @@ def _select_shots(config: Config, only: list[str] | None) -> list[Shot]:
     return [shot for shot in config.shots if shot.name in wanted]
 
 
-def _effective_style(shot: CliShot) -> str:
-    """Resolve a CLI shot's capture style, defaulting to native on macOS."""
+def _effective_style(shot: CliShot | SessionShot) -> str:
+    """Resolve a CLI or session shot's capture style, defaulting to native on macOS."""
     if shot.style is not None:
         return shot.style
     return "native" if sys.platform == "darwin" else "rendered"
@@ -107,14 +107,12 @@ def _effective_style(shot: CliShot) -> str:
 def _is_deterministic(shot: Shot) -> bool:
     """Whether a shot reproduces byte-for-byte across runs (so it can be drift-checked).
 
-    Web pages and *rendered* CLI cards are Chromium renders and reproduce; a real
-    Terminal screenshot (``native`` CLI and every ``session``) does not.
+    Web pages and *rendered* CLI/session cards are Chromium renders and reproduce;
+    a real Terminal screenshot (``native`` CLI and ``native`` session) does not.
     """
     if isinstance(shot, WebShot):
         return True
-    if isinstance(shot, CliShot):
-        return _effective_style(shot) == "rendered"
-    return False
+    return _effective_style(shot) == "rendered"
 
 
 def _resolve_cwd(cwd: str | None, repo_root: Path) -> str:
@@ -122,12 +120,10 @@ def _resolve_cwd(cwd: str | None, repo_root: Path) -> str:
 
 
 def _shot_needs_page(shot: Shot) -> bool:
-    """True if the shot must render through Chromium (web or rendered CLI)."""
+    """True if the shot must render through Chromium (web, or rendered CLI/session)."""
     if isinstance(shot, WebShot):
         return True
-    if isinstance(shot, CliShot):
-        return _effective_style(shot) == "rendered"
-    return False
+    return _effective_style(shot) == "rendered"
 
 
 def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> list[Capture]:
@@ -138,15 +134,19 @@ def _capture_shot(shot: Shot, repo_root: Path, page: Page | None) -> list[Captur
 
     if isinstance(shot, SessionShot):
         cwd = _resolve_cwd(shot.cwd, repo_root)
-        steps = [
-            (
-                step.command,
-                step.clear if step.clear is not None else shot.clear_between,
-                step.wait_ms,
-            )
-            for step in shot.steps
-        ]
-        images = capture_terminal_session(steps, cwd, shot.cols, shot.rows)
+        if _effective_style(shot) == "rendered":
+            assert page is not None  # guaranteed by _shot_needs_page
+            images = capture_cli_session(page, shot, cwd)
+        else:
+            steps = [
+                (
+                    step.command,
+                    step.clear if step.clear is not None else shot.clear_between,
+                    step.wait_ms,
+                )
+                for step in shot.steps
+            ]
+            images = capture_terminal_session(steps, cwd, shot.cols, shot.rows)
         return [
             (step.name, step.alt, "session", data, step.command)
             for step, data in zip(shot.steps, images, strict=True)

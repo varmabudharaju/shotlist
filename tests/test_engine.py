@@ -34,7 +34,9 @@ from shotlist.engine import (
     CaptureError,
     RunOutcome,
     ShotFailure,
+    _capture_shot,
     _is_deterministic,
+    _shot_needs_page,
     run,
 )
 from shotlist.output import CaptureResult
@@ -276,14 +278,82 @@ def test_is_deterministic_by_kind_and_style() -> None:
         _is_deterministic(CliShot(name="c", kind="cli", command="x", style="native"))
         is False
     )
+    # style pinned both ways: the platform default differs (native on macOS,
+    # rendered on Linux), so an unpinned assertion flips per CI leg.
     assert (
         _is_deterministic(
             SessionShot(
-                name="s", kind="session", steps=[SessionStep(name="a", command="x")]
+                name="s",
+                kind="session",
+                style="native",
+                steps=[SessionStep(name="a", command="x")],
             )
         )
         is False
     )
+    assert (
+        _is_deterministic(
+            SessionShot(
+                name="s",
+                kind="session",
+                style="rendered",
+                steps=[SessionStep(name="a", command="x")],
+            )
+        )
+        is True
+    )
+
+
+def test_rendered_session_is_deterministic_and_needs_page() -> None:
+    rendered = SessionShot(
+        name="s",
+        kind="session",
+        style="rendered",
+        steps=[SessionStep(name="a", command="echo x")],
+    )
+    native = SessionShot(
+        name="s",
+        kind="session",
+        style="native",
+        steps=[SessionStep(name="a", command="echo x")],
+    )
+    assert _is_deterministic(rendered) is True
+    assert _shot_needs_page(rendered) is True
+    assert _is_deterministic(native) is False
+    assert _shot_needs_page(native) is False
+
+
+def test_rendered_session_routes_to_cli_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_capture(page: object, shot: SessionShot, cwd: str) -> list[bytes]:
+        seen["page"] = page
+        seen["cwd"] = cwd
+        return [PNG_MAGIC + step.command.encode() for step in shot.steps]
+
+    monkeypatch.setattr("shotlist.engine.capture_cli_session", fake_capture)
+    shot = SessionShot(
+        name="flow",
+        kind="session",
+        style="rendered",
+        steps=[
+            SessionStep(name="first", command="echo one", alt="step one"),
+            SessionStep(name="second", command="echo two"),
+        ],
+    )
+    sentinel_page = object()
+    captures = _capture_shot(shot, tmp_path, sentinel_page)  # type: ignore[arg-type]
+
+    # Routed to the rendered PTY backend with the engine's page and resolved cwd.
+    assert seen["page"] is sentinel_page
+    assert seen["cwd"] == str(tmp_path)
+    # One Capture per step; kind stays "session"; source is the step command.
+    assert [c[0] for c in captures] == ["first", "second"]
+    assert [c[1] for c in captures] == ["step one", ""]
+    assert [c[2] for c in captures] == ["session", "session"]
+    assert [c[4] for c in captures] == ["echo one", "echo two"]
 
 
 def test_run_marks_native_cli_as_nondeterministic(
