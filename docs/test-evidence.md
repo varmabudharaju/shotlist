@@ -19,4 +19,20 @@ shotlist run options: --config, --only, and --version
 
 `.venv/bin/shotlist run --help`
 
+### Session Export
+
+<img src="docs/screenshots/03-session-export.png" width="100%" alt="Step 1: set a variable in the session shell"/>
+
+Step 1: set a variable in the session shell
+
+`export GREETING='state carries across steps'`
+
+### Session Echo
+
+<img src="docs/screenshots/04-session-echo.png" width="100%" alt="Step 2: a later command sees it — one persistent shell"/>
+
+Step 2: a later command sees it — one persistent shell
+
+`echo $GREETING`
+
 <!-- shotlist:end -->
