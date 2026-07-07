@@ -12,6 +12,7 @@ list — drop it in your repo and run `shotlist run`. (Install with
 - [6. Pure-CLI tool docs](#6-pure-cli-tool-docs)
 - [7. Web + CLI in one run](#7-web--cli-in-one-run)
 - [8. Stable CI checks for a busy dashboard](#8-stable-ci-checks-for-a-busy-dashboard)
+- [9. Keep the repo lean: Git LFS + optimize](#9-keep-the-repo-lean-git-lfs--optimize)
 
 ---
 
@@ -195,3 +196,43 @@ shots:
 Now `shotlist check` only fails when something in the shot actually changed.
 See [Drift checking](pipeline.md#drift-checking--shotlist-check) for the full
 tolerance and masking/scrubbing story.
+
+## 9. Keep the repo lean: Git LFS + optimize
+
+**When you want** a big committed screenshot set to stop bloating your git
+history. Turn on `output.optimize` so every written PNG is losslessly re-encoded
+through Pillow (smaller bytes, identical pixels — baselines don't drift), and keep
+the PNGs in [Git LFS](https://git-lfs.com) so their binary churn lives outside
+your main pack files.
+
+```yaml
+output:
+  dir: docs/screenshots
+  optimize: true        # lossless PNG re-encode on write; off by default
+shots:
+  - { name: dashboard, kind: web, url: http://localhost:5173/dashboard, full_page: true, alt: "Dashboard" }
+```
+
+One-time repo setup — track the screenshot directory in LFS and commit the
+pointer config so every clone picks it up:
+
+```bash
+git lfs install
+git lfs track "docs/screenshots/*.png"
+git add .gitattributes
+git commit -m "Track screenshots in Git LFS"
+```
+
+In CI, tell `actions/checkout` to fetch the LFS blobs before `shotlist check`
+compares them — otherwise it sees pointer files, not PNGs, and every shot drifts:
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+```
+
+**When not to bother:** a handful of small shots don't need LFS — the pointer
+indirection only earns its keep once the PNGs are large or numerous.
+`output.optimize` is cheap and safe to leave on regardless; LFS is the part you
+add when the set grows.

@@ -4,6 +4,34 @@ All notable changes to `shotlist` are documented here. Format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `shotlist run --keep-going`: continue past a failed shot instead of stopping at
+  the first one, then report `captured N shot(s), M failed` and exit non-zero if
+  any failed. Without it, a failed shot stops the run with a single clean error
+  line (no traceback). The `index.html`, `manifest.json`, and README splice are
+  written from the successful shots only, and failed shots consume no `NN-` index
+  so the survivors stay contiguously numbered.
+- `retries: N` on `web` and `cli` shots (int, `0`–`5`, default `0`): re-attempt a
+  failed capture up to N extra times before it counts as a failure.
+- `style: rendered` on `session` shots (default: `native` on macOS, `rendered`
+  elsewhere — the same rule as `cli`): drives the whole session through a
+  persistent PTY and draws each step as a styled terminal card, so sessions are
+  cross-platform, CI-safe, and drift-checkable. `scrub` now applies to rendered
+  sessions too.
+- `output.optimize` (bool, default `false`): opt-in lossless Pillow re-encode of
+  every written PNG — smaller files, identical pixels, off by default so existing
+  baselines don't drift.
+- GitHub Action: `pr-comment` input (default `"false"`) plus a `github-token`
+  input (default `${{ github.token }}`). On a `check` run for a `pull_request`
+  event, the action posts/updates one sticky, marker-tagged PR comment with the
+  result line, environment-mismatch bullets, the shot/status/detail table, and a
+  link to the run page for the `shotlist-check-<job>` artifact. Needs
+  `pull-requests: write`; best-effort, so a read-only fork token degrades to a
+  workflow warning instead of failing the job.
+
 ## [0.3.3] — 2026-07-01
 
 - Flow diagrams are now **committed PNG images** (`docs/diagrams/`), embedded in

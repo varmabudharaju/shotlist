@@ -44,6 +44,21 @@ copy `docs/screenshots/` anywhere and the gallery still renders.
 | `environment` | Versions that shape a capture: `shotlist`, `python`, `platform`, `playwright`, `chromium` (installed package versions plus the interpreter and OS; `chromium` is `null` when no browser was launched for the run). `check` compares this against the current machine — see [Environment warnings](#environment-warnings) below. |
 | `git_sha` | Short commit SHA of the repo at capture time, or `null` when git is missing, the run is outside a repository, or the lookup otherwise fails. |
 
+## Failures & retries
+
+By default a shot that fails to capture stops the run with **one clean error
+line** (no traceback) and a non-zero exit. `shotlist run --keep-going` instead
+presses on, captures every shot it can, and reports `captured N shot(s), M
+failed` at the end — still exiting non-zero if any failed. Either way the
+`index.html`, `manifest.json`, and README splice are built from the **successful**
+shots only, so a partial keep-going run leaves a manifest that lists exactly what
+was captured; failed shots consume no `NN-` index, so the numbering of the
+survivors stays contiguous.
+
+Give a flaky `web` or `cli` shot `retries: N` (int, `0`–`5`, default `0`) to
+re-attempt a failed capture up to N extra times before it counts as a failure.
+`session` shots don't take `retries`.
+
 ## Drift checking — `shotlist check`
 
 `shotlist check` re-captures and **fails if anything drifted** from the committed
@@ -52,8 +67,9 @@ changed screen turns the build red.
 
 ![shotlist check reporting drift](check.png)
 
-- Only **deterministic** shots (`web`, `cli·rendered`) are compared; `native`
-  Terminal screenshots can't reproduce byte-for-byte, so they're **skipped**.
+- Only **deterministic** shots (`web`, `cli·rendered`, and the steps of a rendered
+  `session`) are compared; `native` Terminal screenshots — including native
+  sessions — can't reproduce byte-for-byte, so they're **skipped**.
 - Checking is **non-destructive** — it captures into a temp dir and never touches
   your committed PNGs.
 - Exit is **non-zero on drift** (changed / added / removed), zero when clean.
@@ -190,12 +206,14 @@ jobs:
 Pass `with: { command: run }` to regenerate instead, or
 `with: { config: path/to/.shotlist.yaml }`. Bump the `@v0.3.3` tag when you upgrade.
 
-Two more inputs beyond `command`/`config`:
+More inputs beyond `command`/`config`:
 
 | Input | Default | What it does |
 | --- | --- | --- |
 | `package` | `shotlist` | Passed to `pip install`; use `-e .` to exercise a checked-out source tree (e.g. a PR) instead of the published package. |
 | `diff-dir` | `shotlist-diffs` | Directory `check --diff` writes into. |
+| `pr-comment` | `"false"` | On a `pull_request` event, post/update one sticky PR comment with the `check` summary (see [PR comments](#pr-comments)). |
+| `github-token` | `${{ github.token }}` | Token the sticky-comment step authenticates with; needs `pull-requests: write` (or `issues: write`). |
 
 On `check`, the action also renders a Markdown **step summary** — the result
 line, any environment-mismatch bullets, and a shot/status/detail table built
@@ -203,6 +221,45 @@ from the `--json` report — and **uploads** `<diff-dir>` plus the raw JSON as a
 `shotlist-check-<job>` build artifact, even when the check fails; the job still
 exits with `check`'s own exit code afterward, so a real drift still turns the
 build red.
+
+### PR comments
+
+On a `pull_request` event, set `pr-comment: "true"` and the action posts that same
+`check` summary as a **single sticky comment** on the PR — the result line, any
+environment-mismatch bullets, and the shot/status/detail table, plus a link to the
+run page where the `shotlist-check-<job>` artifact (the baseline·current·diff
+images) lives. Images can't inline-embed in a comment, so that link is how a
+reviewer gets to them.
+
+The comment is *sticky*: its body starts with a hidden `<!-- shotlist-check -->`
+marker on the first line, and on later pushes the step finds the existing marked
+comment and **edits it in place** instead of piling up a new comment per run. Only
+the first `pull_request` run creates it.
+
+It needs a token with write access to the PR, so grant the job the permission:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write        # so the action can post/update the comment
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: varmabudharaju/shotlist@v0.3.3
+        with:
+          pr-comment: "true"
+```
+
+`github-token` defaults to the workflow's `${{ github.token }}`; override it only
+to comment as a different identity. The whole step is **best-effort**: on a fork PR
+(where the default token is read-only) it degrades to a workflow warning and the
+job's pass/fail stays purely `check`'s own exit code — it never turns a green
+check red just because it couldn't comment.
 
 See also [recipes #2](recipes.md#2-regenerate-docs-screenshots-in-ci).
 

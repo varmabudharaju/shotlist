@@ -66,12 +66,14 @@ shots:
 | **`web`** | a browser page — with optional click/fill/wait steps first | Playwright / Chromium |
 | **`cli` · `native`** *(macOS default)* | a **real screenshot of your Terminal.app window** — your font, your theme | AppleScript + `screencapture` |
 | **`cli` · `rendered`** *(any OS, CI-safe)* | the command's output drawn as a styled terminal card | PTY → ANSI→HTML → Chromium |
-| **`session`** | a **stateful, multi-command flow** in one persistent terminal — one shot per step | one Terminal window, captured after each step |
+| **`session`** | a **stateful, multi-command flow** in one persistent terminal — one shot per step | native Terminal window (macOS) or rendered terminal cards (any OS, CI-safe), one capture per step |
 
 A `session` is how you screenshot a flow whose later steps depend on earlier ones —
 the shell state (cwd, env, background processes) carries across. Background a
 long-running process with `&` and a small `wait_ms`, keep capturing, and the
-session tears it down on close.
+session tears it down on close. Off macOS — or with `style: rendered` — the whole
+session is drawn as terminal cards from a persistent PTY instead of a real
+Terminal window: no OS permissions, CI-safe, and the same everywhere.
 
 ## Use cases
 
@@ -100,7 +102,10 @@ Attach `manifest.json` to a CI job, or open `index.html` as test-evidence. Set
 `output.title` to relabel the gallery heading, and `output.evidence` to also
 splice a captioned Markdown test-evidence doc — its own file, distinct from
 `output.dir` (where the PNGs land). Turn the report off with `--no-report`
-(or `output.report: false`).
+(or `output.report: false`). Set `output.optimize: true` to losslessly re-encode
+every written PNG through Pillow — smaller files, identical pixels, off by default
+so existing baselines never drift (pairs well with Git LFS; see [recipes
+#9](docs/recipes.md#9-keep-the-repo-lean-git-lfs--optimize)).
 
 ### Catch drift before your users do
 
@@ -163,13 +168,22 @@ lives in [`docs/design.md`](docs/design.md).
 **Robust by design.** The readiness probe (HTTP / TCP port / log line) means you
 never screenshot a half-booted app, and the app is launched in its own process
 group and torn down — even on a crash or Ctrl-C — so a shotlist run never leaves an
-orphaned dev server behind.
+orphaned dev server behind. A single failed shot stops the run with one clean
+error line (no traceback); `shotlist run --keep-going` instead captures everything
+it can and reports `captured N shot(s), M failed` at the end (exit 1 on any
+failure). Either way the manifest, gallery, and README splice come from the
+*successful* shots only. Give a flaky `web` or `cli` shot `retries: N` (0–5,
+default 0) to re-attempt a failed capture before it counts.
 
 **Deterministic by default.** Web shots can `mask` flaky regions (`mask:
-[selector, ...]`) and always capture with CSS animations disabled; CLI shots can
-`scrub` non-deterministic text (durations, timestamps, PIDs) with a regex before
-rendering; and rendered CLI cards embed JetBrains Mono. Baselines now match
-byte-for-byte across macOS and Linux CI, not just on the machine that made them.
+[selector, ...]`) and always capture with CSS animations disabled; CLI shots — and
+now rendered `session` shots — can `scrub` non-deterministic text (durations,
+timestamps, PIDs) with a regex before rendering; and rendered CLI cards embed
+JetBrains Mono. A `session` with `style: rendered` (the default off macOS) runs in
+a persistent PTY and draws each step as a terminal card, so its steps are
+deterministic and drift-checkable too, not just single `cli` shots. Baselines now
+match byte-for-byte across macOS and Linux CI, not just on the machine that made
+them.
 
 ## shotlist, captured by shotlist
 
@@ -203,6 +217,7 @@ on its own [`.shotlist.yaml`](.shotlist.yaml) and spliced in automatically.
 | `shotlist init` | Scaffold a starter `.shotlist.yaml` |
 | `shotlist validate` | Check the shot list is well-formed |
 | `shotlist run` | Capture every shot and write outputs |
+| `shotlist run --keep-going` | Continue past a failed shot and report all failures at the end (exit 1 if any) |
 | `shotlist run --only dashboard` | Capture a single shot by name |
 | `shotlist run --version v2` | Write into a versioned subfolder |
 | `shotlist check` | Fail if a screenshot drifted from the committed baseline |
